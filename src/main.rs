@@ -1,11 +1,13 @@
 use std::path::PathBuf;
 
 use argh::FromArgs;
+use color_eyre::eyre::Context as _;
 use eframe::{
     egui::{containers::ComboBox, CentralPanel, Context, DragValue, TopBottomPanel},
     App, Frame, NativeOptions,
 };
 use serial_worker::SerialWorker;
+use tokio_serial::SerialPortBuilderExt;
 
 mod serial_worker;
 
@@ -35,19 +37,18 @@ fn main() -> color_eyre::Result<()> {
 
     // serialport::available_ports();
 
+    let baud = args.baud.unwrap_or(9600);
+
     eframe::run_native(
         env!("CARGO_PKG_NAME"),
         NativeOptions {
             ..Default::default()
         },
         Box::new(move |ctx| {
-            let baud = args.baud.unwrap_or(9600);
-
             Box::new(Application {
                 serial: SerialWorker::spawn(
-                    serialport::new(args.port, baud)
-                        .open()
-                        .expect("failed to open serial port"),
+                    args.port,
+                    baud,
                     Box::new({
                         let ctx = ctx.egui_ctx.clone();
                         move || ctx.request_repaint()

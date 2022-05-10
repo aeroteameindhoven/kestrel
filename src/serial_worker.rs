@@ -1,15 +1,15 @@
 use std::{
-    io::{self, BufRead, BufReader, ErrorKind},
-    path::PathBuf,
+    io::BufRead,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{channel, Receiver, Sender, TryRecvError},
+        mpsc::{channel, Receiver, Sender},
         Arc,
     },
     thread::{self, JoinHandle},
 };
 
-use serialport::SerialPort;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tracing::{error, info, warn};
 
 pub struct SerialWorker {
@@ -22,19 +22,20 @@ pub struct SerialWorker {
 
 impl SerialWorker {
     pub fn spawn(
-        serial_port: Box<dyn SerialPort>,
+        name: String,
+        baud_rate: u32,
         repaint: Box<impl Fn() + Send + 'static>,
     ) -> SerialWorker {
         let (packet_tx, packet_rx) = channel();
 
-        let connected = Arc::new(AtomicBool::new(true));
+        let connected = Arc::new(AtomicBool::new(false));
 
         let handle = thread::Builder::new()
             .name("serial_worker".into())
             .spawn({
                 let connected = connected.clone();
 
-                move || serial_worker(serial_port, packet_tx, connected, repaint)
+                move || serial_worker(name, baud_rate, packet_tx, connected, repaint)
             })
             .expect("failed to spawn serial worker thread");
 
@@ -50,24 +51,37 @@ impl SerialWorker {
     pub fn connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
     }
+
+    pub fn new_packets(&self) -> Vec<SerialPacket> {
+        self.packet_rx.try_iter().collect()
+    }
 }
 
+#[derive(Debug)]
 pub struct SerialPacket {
     pub name: String,
     pub data: Vec<u8>,
 }
 
-fn serial_worker(
-    serial_port: Box<dyn SerialPort>,
+#[tokio::main]
+async fn serial_worker(
+    name: String,
+    baud_rate: u32,
     packet_tx: Sender<SerialPacket>,
     connected: Arc<AtomicBool>,
     repaint: Box<impl Fn()>,
 ) -> ! {
+    let serial_port = tokio_serial::new(name, baud_rate)
+        .open_native_async()
+        .expect("failed to open serial port");
+
+    connected.store(true, Ordering::SeqCst);
+
     let mut serial_port = BufReader::new(serial_port);
     let mut packet_buffer = Vec::new();
 
     loop {
-        match read_cobs(&mut packet_buffer, &mut serial_port) {
+        match read_cobs(&mut packet_buffer, &mut serial_port).await {
             Some([0xDE, 0xAD, 0xBE, 0xEF]) => {}
             Some(data) => {
                 warn!(
@@ -80,31 +94,37 @@ fn serial_worker(
             None => continue,
         }
 
-        let name = match read_cobs(&mut packet_buffer, &mut serial_port) {
+        let name = match read_cobs(&mut packet_buffer, &mut serial_port).await {
             Some(bytes) => String::from_utf8_lossy(bytes).into_owned(),
             None => {
                 continue;
             }
         };
 
-        let data = match read_cobs(&mut packet_buffer, &mut serial_port) {
+        let data = match read_cobs(&mut packet_buffer, &mut serial_port).await {
             Some(bytes) => bytes,
             None => {
                 continue;
             }
         };
 
-        info!(?name, ?data, "Received packet");
+        packet_tx
+            .send(dbg!(SerialPacket {
+                name,
+                data: data.to_vec(),
+            }))
+            .expect("ui thread has exited");
+        repaint();
     }
 }
 
-fn read_cobs<'vec, 'read>(
+async fn read_cobs<'vec, 'read>(
     vec: &'vec mut Vec<u8>,
-    reader: &'read mut dyn BufRead,
+    reader: &'read mut BufReader<SerialStream>,
 ) -> Option<&'vec [u8]> {
     vec.clear();
 
-    match reader.read_until(0, vec) {
+    match reader.read_until(0, vec).await {
         Ok(_) => match postcard_cobs::decode_in_place(vec) {
             Ok(len) => Some(&vec[..len.saturating_sub(1)]),
             Err(()) => {
