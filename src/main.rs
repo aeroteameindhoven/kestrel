@@ -1,13 +1,9 @@
-use std::path::PathBuf;
-
 use argh::FromArgs;
-use color_eyre::eyre::Context as _;
 use eframe::{
-    egui::{containers::ComboBox, CentralPanel, Context, DragValue, TopBottomPanel},
+    egui::{CentralPanel, Context, TopBottomPanel},
     App, Frame, NativeOptions,
 };
-use serial_worker::SerialWorker;
-use tokio_serial::SerialPortBuilderExt;
+use serial_worker::{SerialWorker, SerialPacket};
 
 mod serial_worker;
 
@@ -33,9 +29,12 @@ fn main() -> color_eyre::Result<()> {
 
     let args: Args = argh::from_env();
 
-    dbg!(&args);
+    if args.list {
+        // TODO:
+        dbg!(tokio_serial::available_ports()?);
 
-    // serialport::available_ports();
+        return Ok(());
+    }
 
     let baud = args.baud.unwrap_or(9600);
 
@@ -46,6 +45,7 @@ fn main() -> color_eyre::Result<()> {
         },
         Box::new(move |ctx| {
             Box::new(Application {
+                packets: Vec::new(),
                 serial: SerialWorker::spawn(
                     args.port,
                     baud,
@@ -61,16 +61,24 @@ fn main() -> color_eyre::Result<()> {
 
 struct Application {
     serial: SerialWorker,
+    packets: Vec<SerialPacket>,
 }
 
 impl App for Application {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
+        self.packets.extend(self.serial.new_packets());
+
         TopBottomPanel::top("serial_select").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.label(self.serial.connected().to_string());
             });
         });
 
-        CentralPanel::default().show(ctx, |ui| {});
+        CentralPanel::default().show(ctx, |ui| {
+            for packet in &self.packets {
+                ui.label(format!("{packet:?}"));
+                ui.separator();
+            }
+        });
     }
 }

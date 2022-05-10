@@ -1,5 +1,4 @@
 use std::{
-    io::BufRead,
     sync::{
         atomic::{AtomicBool, Ordering},
         mpsc::{channel, Receiver, Sender},
@@ -10,7 +9,7 @@ use std::{
 
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
-use tracing::{error, info, warn};
+use tracing::warn;
 
 pub struct SerialWorker {
     connected: Arc<AtomicBool>,
@@ -52,8 +51,8 @@ impl SerialWorker {
         self.connected.load(Ordering::SeqCst)
     }
 
-    pub fn new_packets(&self) -> Vec<SerialPacket> {
-        self.packet_rx.try_iter().collect()
+    pub fn new_packets(&self) -> impl Iterator<Item = SerialPacket> + '_ {
+        self.packet_rx.try_iter()
     }
 }
 
@@ -109,10 +108,10 @@ async fn serial_worker(
         };
 
         packet_tx
-            .send(dbg!(SerialPacket {
+            .send(SerialPacket {
                 name,
                 data: data.to_vec(),
-            }))
+            })
             .expect("ui thread has exited");
         repaint();
     }
