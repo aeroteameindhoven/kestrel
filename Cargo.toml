@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 postcard-cobs = "0.2.0"
-serial2 = "0.1.6"
+serialport = "4.1.0"
 color-eyre = "0.6.1"
 eframe = { version = "0.18.0", features = ["dark-light"] }
 tracing = "0.1.34"
