@@ -1,10 +1,10 @@
+use app::Application;
 use argh::FromArgs;
-use eframe::{
-    egui::{CentralPanel, Context, TopBottomPanel},
-    App, Frame, NativeOptions,
-};
-use serial_worker::{SerialWorker, SerialPacket};
+use eframe::NativeOptions;
+use serial_worker::SerialWorkerController;
+use tracing_subscriber::filter::LevelFilter;
 
+mod app;
 mod serial_worker;
 
 /// Visualization tool for the DBL Venus Exploration project
@@ -25,7 +25,10 @@ struct Args {
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
-    tracing_subscriber::fmt().pretty().init();
+    tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::TRACE)
+        .compact()
+        .init();
 
     let args: Args = argh::from_env();
 
@@ -46,39 +49,16 @@ fn main() -> color_eyre::Result<()> {
         Box::new(move |ctx| {
             Box::new(Application {
                 packets: Vec::new(),
-                serial: SerialWorker::spawn(
+                serial: SerialWorkerController::spawn(
                     args.port,
                     baud,
                     Box::new({
                         let ctx = ctx.egui_ctx.clone();
+
                         move || ctx.request_repaint()
                     }),
                 ),
             })
         }),
     )
-}
-
-struct Application {
-    serial: SerialWorker,
-    packets: Vec<SerialPacket>,
-}
-
-impl App for Application {
-    fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-        self.packets.extend(self.serial.new_packets());
-
-        TopBottomPanel::top("serial_select").show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.label(self.serial.connected().to_string());
-            });
-        });
-
-        CentralPanel::default().show(ctx, |ui| {
-            for packet in &self.packets {
-                ui.label(format!("{packet:?}"));
-                ui.separator();
-            }
-        });
-    }
 }
