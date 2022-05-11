@@ -3,12 +3,14 @@ use eframe::{
     epaint::Color32,
     App, Frame,
 };
+use egui_extras::{Size, TableBuilder};
+use time::{Instant, OffsetDateTime};
 
-use crate::serial_worker::{SerialPacket, SerialWorkerController};
+use crate::serial_worker::{Packet, SerialPacket, SerialWorkerController};
 
 pub struct Application {
     pub serial: SerialWorkerController,
-    pub packets: Vec<SerialPacket>,
+    pub packets: Vec<(OffsetDateTime, Packet)>,
 }
 
 impl App for Application {
@@ -35,10 +37,48 @@ impl App for Application {
         });
 
         CentralPanel::default().show(ctx, |ui| {
-            for packet in &self.packets {
-                ui.label(format!("{packet:?}"));
-                ui.separator();
-            }
+            TableBuilder::new(ui)
+                .columns(Size::remainder(), 3)
+                .striped(true)
+                .header(20.0, |mut header| {
+                    header.col(|ui| {
+                        ui.heading("Timestamp");
+                    });
+                    header.col(|ui| {
+                        ui.heading("Packet Name");
+                    });
+                    header.col(|ui| {
+                        ui.heading("Packet Data");
+                    });
+                })
+                .body(|body| {
+                    body.rows(15.0, self.packets.len(), |idx, mut row| {
+                        let (timestamp, packet) = &self.packets[self.packets.len() - (idx + 1)];
+
+                        let (name, data) = match packet {
+                            Packet::Serial(SerialPacket { name, data }) => (
+                                RichText::new(name),
+                                RichText::new(format!("{data:?}")).monospace(),
+                            ),
+                            Packet::System(packet) => (
+                                RichText::new("[system]").color(Color32::YELLOW),
+                                RichText::new(format!("{packet:?}"))
+                                    .monospace()
+                                    .color(Color32::KHAKI),
+                            ),
+                        };
+
+                        row.col(|ui| {
+                            ui.label(timestamp.to_string());
+                        });
+                        row.col(|ui| {
+                            ui.label(name);
+                        });
+                        row.col(|ui| {
+                            ui.label(data);
+                        });
+                    })
+                });
         });
     }
 }

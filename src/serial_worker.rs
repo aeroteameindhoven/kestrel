@@ -7,18 +7,18 @@ use std::{
         Arc,
     },
     thread::{self, JoinHandle},
-    time::Duration,
 };
 
+use time::{ext::NumericalStdDuration, OffsetDateTime};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
-use tracing::{info, warn, trace, debug};
+use tracing::{debug, info, trace, warn};
 
 pub struct SerialWorkerController {
     port_name: Arc<str>,
 
     connected: Arc<AtomicBool>,
-    packet_rx: Receiver<SerialPacket>,
+    packet_rx: Receiver<(OffsetDateTime, Packet)>,
 
     handle: JoinHandle<()>,
 }
@@ -43,6 +43,7 @@ impl SerialWorkerController {
                 move || {
                     let runtime = tokio::runtime::Builder::new_current_thread()
                         .enable_time()
+                        .enable_io()
                         .build()
                         .unwrap();
 
@@ -80,7 +81,7 @@ impl SerialWorkerController {
         self.port_name.as_ref()
     }
 
-    pub fn new_packets(&self) -> impl Iterator<Item = SerialPacket> + '_ {
+    pub fn new_packets(&self) -> impl Iterator<Item = (OffsetDateTime, Packet)> + '_ {
         self.packet_rx.try_iter()
     }
 
@@ -90,15 +91,27 @@ impl SerialWorkerController {
 }
 
 #[derive(Debug)]
+pub enum Packet {
+    Serial(SerialPacket),
+    System(SystemPacket),
+}
+
+#[derive(Debug)]
 pub struct SerialPacket {
     pub name: String,
     pub data: Vec<u8>,
 }
 
+#[derive(Debug)]
+pub enum SystemPacket {
+    SerialDisconnect,
+    SerialConnect,
+}
+
 struct SerialWorker {
     port_name: Arc<str>,
     baud_rate: u32,
-    packet_tx: Sender<SerialPacket>,
+    packet_tx: Sender<(OffsetDateTime, Packet)>,
     connected: Arc<AtomicBool>,
     repaint: Box<dyn Fn()>,
 
@@ -122,14 +135,15 @@ impl SerialWorker {
 
                         opt_reader = None;
 
-                        self.connected.store(true, Ordering::SeqCst);
+                        self.connected.store(false, Ordering::SeqCst);
+                        self.send_packet(Packet::System(SystemPacket::SerialDisconnect));
                         self.repaint();
                     }
                     Err(COBSReadError::MalformedCOBS) => {
                         warn!("received malformed COBS data");
                     }
                     Ok(Some(packet)) => {
-                        self.packet_tx.send(packet).expect("ui thread has exited");
+                        self.send_packet(Packet::Serial(packet));
                         self.repaint();
                     }
                     Ok(None) => {
@@ -143,16 +157,23 @@ impl SerialWorker {
                         opt_reader = Some(reader);
 
                         self.connected.store(true, Ordering::SeqCst);
+                        self.send_packet(Packet::System(SystemPacket::SerialConnect));
                         self.repaint();
                     }
                     None => {
                         trace!("serial port not found... sleeping 1 second");
 
-                        tokio::time::sleep(Duration::from_millis(1000)).await;
+                        tokio::time::sleep(1.std_seconds()).await;
                     }
                 },
             }
         }
+    }
+
+    fn send_packet(&self, packet: Packet) {
+        self.packet_tx
+            .send((OffsetDateTime::now_utc(), packet))
+            .expect("ui thread has exited");
     }
 
     fn repaint(&self) {
