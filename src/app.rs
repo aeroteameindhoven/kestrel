@@ -4,9 +4,9 @@ use eframe::{
     App, Frame,
 };
 use egui_extras::{Size, TableBuilder};
-use time::{Instant, OffsetDateTime};
+use time::OffsetDateTime;
 
-use crate::serial_worker::{Packet, SerialPacket, SerialWorkerController};
+use crate::serial_worker::{Metric, Packet, SerialWorkerController};
 
 pub struct Application {
     pub serial: SerialWorkerController,
@@ -45,10 +45,10 @@ impl App for Application {
                         ui.heading("Timestamp");
                     });
                     header.col(|ui| {
-                        ui.heading("Packet Name");
+                        ui.heading("Metric Name");
                     });
                     header.col(|ui| {
-                        ui.heading("Packet Data");
+                        ui.heading("Metric Data");
                     });
                 })
                 .body(|body| {
@@ -56,11 +56,15 @@ impl App for Application {
                         let (timestamp, packet) = &self.packets[self.packets.len() - (idx + 1)];
 
                         let (name, data) = match packet {
-                            Packet::Serial(SerialPacket { name, data }) => (
-                                RichText::new(name),
-                                RichText::new(format!("{data:?}")).monospace(),
+                            Packet::Telemetry(Metric {
+                                value: metric,
+                                name: metric_name,
+                            }) => (
+                                RichText::new(metric_name),
+                                RichText::new(format!("{metric:?}")).monospace(),
                             ),
                             Packet::System(packet) => (
+                                // TODO: non row element?
                                 RichText::new("[system]").color(Color32::YELLOW),
                                 RichText::new(format!("{packet:?}"))
                                     .monospace()
