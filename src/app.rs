@@ -8,7 +8,10 @@ use eframe::{
 use egui_extras::{Size, TableBuilder};
 use time::OffsetDateTime;
 
-use crate::serial_worker::{Metric, MetricValue, Packet, SerialWorkerController};
+use crate::serial::{
+    packet::{Metric, MetricValue, Packet},
+    worker::SerialWorkerController,
+};
 
 pub struct Application {
     pub serial: SerialWorkerController,
@@ -32,15 +35,31 @@ impl App for Application {
 
                 ui.separator();
 
-                if !self.serial.connected() {
-                    ui.label(
-                        RichText::new("Waiting for serial port to become available")
-                            .color(Color32::YELLOW),
-                    );
+                if self.serial.detached() {
+                    if ui.button("Attach").clicked() {
+                        self.serial.attach();
+                    }
 
-                    ui.spinner();
+                    ui.label(RichText::new("Detached").color(Color32::RED));
                 } else {
-                    ui.label(RichText::new("Connected").color(Color32::GREEN));
+                    if ui.button("Detach").clicked() {
+                        self.serial.detach();
+                    }
+                    
+                    ui.label(RichText::new("Attached").color(Color32::YELLOW));
+
+                    ui.separator();
+
+                    if self.serial.connected() {
+                        ui.label(RichText::new("Connected").color(Color32::GREEN));
+                    } else {
+                        ui.label(
+                            RichText::new("Waiting for serial port to become available")
+                                .color(Color32::YELLOW),
+                        );
+
+                        ui.spinner();
+                    }
                 }
             });
         });

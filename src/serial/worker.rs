@@ -1,128 +1,29 @@
 use std::{
-    any::Any,
-    ffi::CStr,
-    io,
     mem::size_of,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{channel, Receiver, Sender},
+        mpsc::Sender,
         Arc,
     },
-    thread::{self, JoinHandle},
+    thread,
 };
 
 use time::{ext::NumericalStdDuration, OffsetDateTime};
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tracing::{debug, info, trace, warn};
 
-pub struct SerialWorkerController {
-    port_name: Arc<str>,
+mod controller;
+mod detacher;
+mod error;
 
-    connected: Arc<AtomicBool>,
-    packet_rx: Receiver<(OffsetDateTime, Packet)>,
+pub use controller::SerialWorkerController;
 
-    handle: JoinHandle<()>,
-}
+use crate::serial::packet::{MetricValue, SystemPacket};
 
-impl SerialWorkerController {
-    pub fn spawn(
-        port_name: String,
-        baud_rate: u32,
-        repaint: Box<impl Fn() + Send + 'static>,
-    ) -> SerialWorkerController {
-        let (packet_tx, packet_rx) = channel();
+use self::error::{PacketReadError, TransportError};
 
-        let connected = Arc::new(AtomicBool::new(false));
-        let port_name = Arc::from(port_name.into_boxed_str());
-
-        let handle = thread::Builder::new()
-            .name("serial_worker".into())
-            .spawn({
-                let connected = Arc::clone(&connected);
-                let port_name = Arc::clone(&port_name);
-
-                move || {
-                    let runtime = tokio::runtime::Builder::new_current_thread()
-                        .enable_time()
-                        .enable_io()
-                        .build()
-                        .unwrap();
-
-                    runtime.block_on(
-                        SerialWorker {
-                            port_name,
-                            baud_rate,
-                            packet_tx,
-                            connected,
-                            repaint,
-                        }
-                        .spawn(),
-                    )
-                }
-            })
-            .expect("failed to spawn serial worker thread");
-
-        Self {
-            packet_rx,
-            handle,
-
-            port_name,
-
-            connected,
-        }
-    }
-
-    pub fn connected(&self) -> bool {
-        self.connected.load(Ordering::SeqCst)
-    }
-
-    pub fn port_name(&self) -> &str {
-        self.port_name.as_ref()
-    }
-
-    pub fn new_packets(&self) -> impl Iterator<Item = (OffsetDateTime, Packet)> + '_ {
-        self.packet_rx.try_iter()
-    }
-
-    pub fn join(self) -> Result<(), Box<dyn Any + Send + 'static>> {
-        self.handle.join()
-    }
-}
-
-#[derive(Debug)]
-pub enum Packet {
-    Telemetry(Metric),
-    System(SystemPacket),
-}
-
-#[derive(Debug)]
-pub struct Metric {
-    pub name: String,
-    pub value: MetricValue,
-}
-
-#[derive(Debug, Clone)]
-pub enum MetricValue {
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
-    Bool(bool),
-    F32(f32),
-    F64(f64),
-    Unknown(String, Box<[u8]>),
-}
-
-#[derive(Debug)]
-pub enum SystemPacket {
-    SerialDisconnect,
-    SerialConnect,
-}
+use super::packet::{Metric, Packet};
 
 struct SerialWorker {
     port_name: Arc<str>,
@@ -130,47 +31,34 @@ struct SerialWorker {
     packet_tx: Sender<(OffsetDateTime, Packet)>,
     connected: Arc<AtomicBool>,
     repaint: Box<dyn Fn()>,
-}
 
-enum TransportError {
-    SerialPortDisconnected,
-    MalformedCOBS(Box<[u8]>),
-}
-
-impl From<io::Error> for TransportError {
-    fn from(error: io::Error) -> Self {
-        match error.kind() {
-            io::ErrorKind::TimedOut => TransportError::SerialPortDisconnected,
-            _ => panic!("encountered IO error: {error}"),
-        }
-    }
-}
-
-enum PacketReadError {
-    PoorLayout { section: usize, packet: Box<[u8]> },
-    BadPacketLength { expected: Option<usize>, got: usize },
-    BadValueLength { expected: usize, got: usize },
-    TransportError(TransportError),
-}
-
-impl From<TransportError> for PacketReadError {
-    fn from(e: TransportError) -> Self {
-        Self::TransportError(e)
-    }
-}
-
-impl From<io::Error> for PacketReadError {
-    fn from(error: io::Error) -> Self {
-        Self::TransportError(error.into())
-    }
+    detach: Arc<AtomicBool>,
 }
 
 impl SerialWorker {
     pub async fn spawn(mut self) -> ! {
-        let mut opt_reader = None;
+        let mut opt_reader: Option<BufReader<SerialStream>> = None;
         let mut packet_buffer = Vec::new();
 
         loop {
+            if self.detach.load(Ordering::SeqCst) {
+                if let Some(reader) = &mut opt_reader {
+                    self.send_packet(Packet::System(SystemPacket::SerialDisconnect));
+
+                    reader.shutdown().await.expect("failed to shutdown serial");
+                }
+
+                opt_reader = None;
+
+                // TODO: lots of repeat calls to keep state up to date, do something about that?
+                self.connected.store(false, Ordering::SeqCst);
+                self.repaint();
+
+                thread::park();
+
+                continue;
+            }
+
             match &mut opt_reader {
                 Some(reader) => match self.read_packet(reader, &mut packet_buffer).await {
                     Err(PacketReadError::TransportError(

@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use app::Application;
 use argh::FromArgs;
 use eframe::NativeOptions;
-use serial_worker::SerialWorkerController;
+use serial::worker::SerialWorkerController;
 use tracing_subscriber::filter::LevelFilter;
 
 mod app;
-mod serial_worker;
+mod serial;
 
 /// Visualization tool for the DBL Venus Exploration project
 #[derive(FromArgs, Debug)]
