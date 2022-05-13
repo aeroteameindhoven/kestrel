@@ -1,3 +1,4 @@
+use std::{convert::Infallible, str::FromStr};
 
 #[derive(Debug)]
 pub enum Packet {
@@ -6,8 +7,14 @@ pub enum Packet {
 }
 
 #[derive(Debug)]
+pub enum SystemPacket {
+    SerialDisconnect,
+    SerialConnect,
+}
+
+#[derive(Debug)]
 pub struct Metric {
-    pub name: String,
+    pub name: MetricName,
     pub value: MetricValue,
 }
 
@@ -27,8 +34,22 @@ pub enum MetricValue {
     Unknown(String, Box<[u8]>),
 }
 
-#[derive(Debug)]
-pub enum SystemPacket {
-    SerialDisconnect,
-    SerialConnect,
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum MetricName {
+    Namespaced { namespace: String, name: String },
+    Default(String),
+}
+
+impl FromStr for MetricName {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.split_once(':') {
+            Some((namespace, name)) => Self::Namespaced {
+                namespace: namespace.into(),
+                name: name.into(),
+            },
+            None => Self::Default(s.into()),
+        })
+    }
 }

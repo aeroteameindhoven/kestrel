@@ -213,7 +213,9 @@ impl SerialWorker {
         };
 
         Ok(Metric {
-            name: metric_name,
+            name: metric_name
+                .parse()
+                .expect("metric name parsing must never fail"),
             value: metric_value,
         })
     }

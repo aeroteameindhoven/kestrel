@@ -1,22 +1,24 @@
 use std::collections::BTreeMap;
 
 use eframe::{
-    egui::{CentralPanel, Context, Layout, RichText, SidePanel, TopBottomPanel},
-    epaint::Color32,
+    egui::{
+        CentralPanel, Context, Layout, RichText, SidePanel, TextFormat, TopBottomPanel, WidgetText,
+    },
+    epaint::{text::LayoutJob, Color32},
     App, Frame,
 };
 use egui_extras::{Size, TableBuilder};
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::serial::{
-    packet::{Metric, MetricValue, Packet},
+    packet::{Metric, MetricName, MetricValue, Packet},
     worker::SerialWorkerController,
 };
 
 pub struct Application {
     pub serial: SerialWorkerController,
     pub packets: Vec<(OffsetDateTime, Packet)>,
-    pub latest_metrics: BTreeMap<String, MetricValue>,
+    pub latest_metrics: BTreeMap<MetricName, MetricValue>,
 }
 
 impl App for Application {
@@ -86,7 +88,7 @@ impl App for Application {
                         for (metric_name, metric_value) in self.latest_metrics.iter() {
                             body.row(15.0, |mut row| {
                                 row.col(|ui| {
-                                    ui.label(metric_name);
+                                    ui.label(metric_name_text(metric_name));
                                 });
                                 row.col(|ui| {
                                     ui.monospace(format!("{metric_value:?}"));
@@ -122,12 +124,12 @@ impl App for Application {
                                 value: metric,
                                 name: metric_name,
                             }) => (
-                                RichText::new(metric_name),
+                                metric_name_text(metric_name),
                                 RichText::new(format!("{metric:?}")).monospace(),
                             ),
                             Packet::System(packet) => (
                                 // TODO: non row element?
-                                RichText::new("[system]").color(Color32::YELLOW),
+                                RichText::new("[system]").color(Color32::YELLOW).into(),
                                 RichText::new(format!("{packet:?}"))
                                     .monospace()
                                     .color(Color32::KHAKI),
@@ -150,5 +152,32 @@ impl App for Application {
                     })
                 });
         });
+    }
+}
+
+fn metric_name_text(name: &MetricName) -> WidgetText {
+    match name {
+        MetricName::Namespaced { namespace, name } => {
+            let mut job = LayoutJob::default();
+            job.append(
+                namespace,
+                0.0,
+                TextFormat {
+                    color: Color32::KHAKI,
+                    ..Default::default()
+                },
+            );
+            job.append(":", 0.0, Default::default());
+            job.append(
+                name,
+                0.0,
+                TextFormat {
+                    color: Color32::GOLD,
+                    ..Default::default()
+                },
+            );
+            WidgetText::LayoutJob(job)
+        }
+        MetricName::Default(name) => WidgetText::RichText(RichText::new(name).color(Color32::GOLD)),
     }
 }
