@@ -1,5 +1,6 @@
 use std::{
     any::Any,
+    ffi::CStr,
     io,
     mem::size_of,
     sync::{
@@ -146,6 +147,8 @@ impl From<io::Error> for TransportError {
 }
 
 enum PacketReadError {
+    PoorLayout { section: usize, packet: Box<[u8]> },
+    BadPacketLength { expected: Option<usize>, got: usize },
     BadValueLength { expected: usize, got: usize },
     TransportError(TransportError),
 }
@@ -182,10 +185,20 @@ impl SerialWorker {
                         self.repaint();
                     }
                     Err(PacketReadError::TransportError(TransportError::MalformedCOBS(data))) => {
-                        warn!(?data, "received malformed COBS data");
+                        warn!(?data, "Received malformed COBS data");
                     }
                     Err(PacketReadError::BadValueLength { expected, got }) => {
                         debug!(%expected, %got, "Value did not match expected length");
+                    }
+                    Err(PacketReadError::BadPacketLength { expected, got }) => {
+                        debug!(
+                            ?expected,
+                            %got,
+                            "Packet length did not match expected length"
+                        );
+                    }
+                    Err(PacketReadError::PoorLayout { packet, section }) => {
+                        warn!(?packet, %section, "Received packet with a bad layout");
                     }
                     Ok(metric) => {
                         self.send_packet(Packet::Telemetry(metric));
@@ -235,76 +248,76 @@ impl SerialWorker {
         reader: &'read mut BufReader<SerialStream>,
         buffer: &'buffer mut Vec<u8>,
     ) -> Result<Metric, PacketReadError> {
-        loop {
-            buffer.clear();
-            let buffer = self.read_cobs(reader, buffer).await?;
-            println!("{:02X?}", buffer);
+        let buffer = self.read_cobs(reader, buffer).await?;
+
+        let (packet, packet_length) = buffer.split_at(buffer.len().saturating_sub(2));
+
+        let packet_length =
+            packet_length
+                .try_into()
+                .map_err(|_| PacketReadError::BadPacketLength {
+                    expected: None,
+                    got: packet.len(),
+                })?;
+        let packet_length = u16::from_le_bytes(packet_length) as usize - size_of::<u16>();
+
+        if packet_length != packet.len() {
+            return Err(PacketReadError::BadPacketLength {
+                expected: Some(packet_length),
+                got: packet.len(),
+            });
         }
 
-        loop {
-            let buffer = reader.fill_buf().await?;
+        let mut split = packet.splitn(3, |&b| b == 0x00);
 
-            // Find 4 null bytes followed by a non null byte, this is the header
-            let header_index = buffer
-                .windows(5)
-                .enumerate()
-                .find(|(_, items)| items[0..4] == [0, 0, 0, 0] && items[4] != 0)
-                .map(|(i, _)| i);
+        let metric_name = split.next().ok_or_else(|| PacketReadError::PoorLayout {
+            section: 0,
+            packet: Box::from(packet),
+        })?;
+        let metric_name = String::from_utf8_lossy(metric_name).into_owned();
 
-            if let Some(header_index) = header_index {
-                if header_index != 0 {
-                    warn!(%header_index, before = ?&buffer[..header_index], "header not at start of frame");
-                }
-                // Move past the header
-                reader.consume(header_index + 4);
+        let metric_type = split.next().ok_or_else(|| PacketReadError::PoorLayout {
+            section: 1,
+            packet: Box::from(packet),
+        })?;
+        let metric_type = String::from_utf8_lossy(metric_type).into_owned();
 
-                break;
-            } else {
-                // Move past garbage data
-                let len = buffer.len();
-                warn!(%len, "Found no header, trying again");
-                reader.consume(len);
-            }
-        }
-
-        let metric_name =
-            String::from_utf8_lossy(self.read_cobs(reader, buffer).await?).into_owned();
-        let metric_type =
-            String::from_utf8_lossy(self.read_cobs(reader, buffer).await?).into_owned();
-
-        let data = self.read_cobs(reader, buffer).await?;
+        let metric = split.next().ok_or_else(|| PacketReadError::PoorLayout {
+            section: 2,
+            packet: Box::from(packet),
+        })?;
 
         macro_rules! metric {
-            ($data:ident as $ty:ty) => {
-                <$ty>::from_le_bytes($data.try_into().map_err(|_| {
+            (as $ty:ty) => {
+                <$ty>::from_le_bytes(metric.try_into().map_err(|_| {
                     PacketReadError::BadValueLength {
                         expected: size_of::<$ty>(),
-                        got: data.len(),
+                        got: metric.len(),
                     }
                 })?)
             };
         }
 
         let metric_value = match metric_type.as_str() {
-            "u8" => MetricValue::U8(metric!(data as u8)),
-            "u16" => MetricValue::U16(metric!(data as u16)),
-            "u32" => MetricValue::U32(metric!(data as u32)),
-            "u64" => MetricValue::U64(metric!(data as u64)),
+            "u8" => MetricValue::U8(metric!(as u8)),
+            "u16" => MetricValue::U16(metric!(as u16)),
+            "u32" => MetricValue::U32(metric!(as u32)),
+            "u64" => MetricValue::U64(metric!(as u64)),
 
-            "i8" => MetricValue::I8(metric!(data as i8)),
-            "i16" => MetricValue::I16(metric!(data as i16)),
-            "i32" => MetricValue::I32(metric!(data as i32)),
-            "i64" => MetricValue::I64(metric!(data as i64)),
+            "i8" => MetricValue::I8(metric!(as i8)),
+            "i16" => MetricValue::I16(metric!(as i16)),
+            "i32" => MetricValue::I32(metric!(as i32)),
+            "i64" => MetricValue::I64(metric!(as i64)),
 
-            "bool" => MetricValue::Bool(metric!(data as u8) != 0),
+            "bool" => MetricValue::Bool(metric!(as u8) != 0),
 
-            "f32" => MetricValue::F32(metric!(data as f32)),
-            "f64" => MetricValue::F64(metric!(data as f64)),
+            "f32" => MetricValue::F32(metric!(as f32)),
+            "f64" => MetricValue::F64(metric!(as f64)),
 
             _ => {
                 warn!(%metric_type, "received metric of unknown type");
 
-                MetricValue::Unknown(metric_type, Box::from(data))
+                MetricValue::Unknown(metric_type, Box::from(metric))
             }
         };
 
