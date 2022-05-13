@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use app::Application;
 use argh::FromArgs;
 use eframe::NativeOptions;
@@ -58,6 +60,7 @@ fn main() -> color_eyre::Result<()> {
                         move || ctx.request_repaint()
                     }),
                 ),
+                latest_metrics: HashMap::new(),
             })
         }),
     )

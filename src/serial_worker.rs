@@ -11,7 +11,7 @@ use std::{
 };
 
 use time::{ext::NumericalStdDuration, OffsetDateTime};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tracing::{debug, info, trace, warn};
 
@@ -101,7 +101,7 @@ pub struct Metric {
     pub value: MetricValue,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MetricValue {
     U8(u8),
     U16(u16),
@@ -112,6 +112,8 @@ pub enum MetricValue {
     I32(i32),
     I64(i64),
     Bool(bool),
+    F32(f32),
+    F64(f64),
     Unknown(String, Box<[u8]>),
 }
 
@@ -134,8 +136,16 @@ enum TransportError {
     MalformedCOBS(Box<[u8]>),
 }
 
+impl From<io::Error> for TransportError {
+    fn from(error: io::Error) -> Self {
+        match error.kind() {
+            io::ErrorKind::TimedOut => TransportError::SerialPortDisconnected,
+            _ => panic!("encountered IO error: {error}"),
+        }
+    }
+}
+
 enum PacketReadError {
-    BadHeader(Box<[u8]>),
     BadValueLength { expected: usize, got: usize },
     TransportError(TransportError),
 }
@@ -143,6 +153,12 @@ enum PacketReadError {
 impl From<TransportError> for PacketReadError {
     fn from(e: TransportError) -> Self {
         Self::TransportError(e)
+    }
+}
+
+impl From<io::Error> for PacketReadError {
+    fn from(error: io::Error) -> Self {
+        Self::TransportError(error.into())
     }
 }
 
@@ -167,12 +183,6 @@ impl SerialWorker {
                     }
                     Err(PacketReadError::TransportError(TransportError::MalformedCOBS(data))) => {
                         warn!(?data, "received malformed COBS data");
-                    }
-                    Err(PacketReadError::BadHeader(header)) => {
-                        debug!(
-                            ?header,
-                            "Expected header, got something else. Sender de-sync?"
-                        );
                     }
                     Err(PacketReadError::BadValueLength { expected, got }) => {
                         debug!(%expected, %got, "Value did not match expected length");
@@ -225,12 +235,35 @@ impl SerialWorker {
         reader: &'read mut BufReader<SerialStream>,
         buffer: &'buffer mut Vec<u8>,
     ) -> Result<Metric, PacketReadError> {
-        // Read ""header"" (just 4 empty COBS frames)
-        for _ in 0..4 {
-            let header = self.read_cobs(reader, buffer).await?;
+        loop {
+            buffer.clear();
+            let buffer = self.read_cobs(reader, buffer).await?;
+            println!("{:02X?}", buffer);
+        }
 
-            if !header.is_empty() {
-                return Err(PacketReadError::BadHeader(Box::from(header)));
+        loop {
+            let buffer = reader.fill_buf().await?;
+
+            // Find 4 null bytes followed by a non null byte, this is the header
+            let header_index = buffer
+                .windows(5)
+                .enumerate()
+                .find(|(_, items)| items[0..4] == [0, 0, 0, 0] && items[4] != 0)
+                .map(|(i, _)| i);
+
+            if let Some(header_index) = header_index {
+                if header_index != 0 {
+                    warn!(%header_index, before = ?&buffer[..header_index], "header not at start of frame");
+                }
+                // Move past the header
+                reader.consume(header_index + 4);
+
+                break;
+            } else {
+                // Move past garbage data
+                let len = buffer.len();
+                warn!(%len, "Found no header, trying again");
+                reader.consume(len);
             }
         }
 
@@ -265,6 +298,9 @@ impl SerialWorker {
 
             "bool" => MetricValue::Bool(metric!(data as u8) != 0),
 
+            "f32" => MetricValue::F32(metric!(data as f32)),
+            "f64" => MetricValue::F64(metric!(data as f64)),
+
             _ => {
                 warn!(%metric_type, "received metric of unknown type");
 
@@ -285,20 +321,15 @@ impl SerialWorker {
     ) -> Result<&'buffer [u8], TransportError> {
         buffer.clear();
 
-        match reader.read_until(0, buffer).await {
-            Ok(len) => match postcard_cobs::decode_in_place(buffer) {
-                Ok(len) => Ok(&buffer[..len.saturating_sub(1)]),
-                Err(()) => Err(TransportError::MalformedCOBS(Box::from(
-                    &buffer[..len.saturating_sub(1)],
-                ))),
-            },
-            Err(error) if error.kind() == io::ErrorKind::TimedOut => {
-                info!("serial port disconnected");
-                self.connected.store(false, Ordering::SeqCst);
+        let buffer = {
+            let len = reader.read_until(0, buffer).await?;
 
-                Err(TransportError::SerialPortDisconnected)
-            }
-            Err(error) => panic!("{error} {}", error.kind()),
+            &mut buffer[..len]
+        };
+
+        match postcard_cobs::decode_in_place(buffer) {
+            Ok(len) => Ok(&buffer[..len.saturating_sub(1)]),
+            Err(()) => Err(TransportError::MalformedCOBS(Box::from(&buffer[..]))),
         }
     }
 }

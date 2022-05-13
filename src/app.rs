@@ -1,21 +1,30 @@
+use std::collections::HashMap;
+
 use eframe::{
-    egui::{CentralPanel, Context, RichText, TopBottomPanel},
+    egui::{CentralPanel, Context, RichText, SidePanel, TopBottomPanel},
     epaint::Color32,
     App, Frame,
 };
 use egui_extras::{Size, TableBuilder};
 use time::OffsetDateTime;
 
-use crate::serial_worker::{Metric, Packet, SerialWorkerController};
+use crate::serial_worker::{Metric, MetricValue, Packet, SerialWorkerController};
 
 pub struct Application {
     pub serial: SerialWorkerController,
     pub packets: Vec<(OffsetDateTime, Packet)>,
+    pub latest_metrics: HashMap<String, MetricValue>,
 }
 
 impl App for Application {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-        self.packets.extend(self.serial.new_packets());
+        self.packets
+            .extend(self.serial.new_packets().inspect(|(_, packet)| {
+                if let Packet::Telemetry(metric) = packet {
+                    self.latest_metrics
+                        .insert(metric.name.clone(), metric.value.clone());
+                }
+            }));
 
         TopBottomPanel::top("serial_select").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -34,6 +43,35 @@ impl App for Application {
                     ui.label(RichText::new("Connected").color(Color32::GREEN));
                 }
             });
+        });
+
+        SidePanel::left("latest_metrics").show(ctx, |ui| {
+            ui.heading("Latest Metrics");
+            ui.separator();
+
+            TableBuilder::new(ui)
+                .columns(Size::remainder(), 2)
+                .striped(true)
+                .header(20.0, |mut header| {
+                    header.col(|ui| {
+                        ui.heading("Name");
+                    });
+                    header.col(|ui| {
+                        ui.heading("Value");
+                    });
+                })
+                .body(|mut body| {
+                    for (metric_name, metric_value) in self.latest_metrics.iter() {
+                        body.row(15.0, |mut row| {
+                            row.col(|ui| {
+                                ui.label(metric_name);
+                            });
+                            row.col(|ui| {
+                                ui.monospace(format!("{metric_value:?}"));
+                            });
+                        });
+                    }
+                });
         });
 
         CentralPanel::default().show(ctx, |ui| {
