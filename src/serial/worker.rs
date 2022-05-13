@@ -1,4 +1,5 @@
 use std::{
+    io::{BufRead, BufReader},
     mem::size_of,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -6,11 +7,11 @@ use std::{
         Arc,
     },
     thread,
+    time::Duration,
 };
 
+use serialport::SerialPort;
 use time::{ext::NumericalStdDuration, OffsetDateTime};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio_serial::{SerialPortBuilderExt, SerialStream};
 use tracing::{debug, info, trace, warn};
 
 mod controller;
@@ -36,16 +37,14 @@ struct SerialWorker {
 }
 
 impl SerialWorker {
-    pub async fn spawn(mut self) -> ! {
-        let mut opt_reader: Option<BufReader<SerialStream>> = None;
+    pub fn spawn(mut self) -> ! {
+        let mut opt_reader: Option<BufReader<Box<dyn SerialPort>>> = None;
         let mut packet_buffer = Vec::new();
 
         loop {
             if self.detach.load(Ordering::SeqCst) {
-                if let Some(reader) = &mut opt_reader {
+                if opt_reader.is_some() {
                     self.send_packet(Packet::System(SystemPacket::SerialDisconnect));
-
-                    reader.shutdown().await.expect("failed to shutdown serial");
                 }
 
                 opt_reader = None;
@@ -60,7 +59,8 @@ impl SerialWorker {
             }
 
             match &mut opt_reader {
-                Some(reader) => match self.read_packet(reader, &mut packet_buffer).await {
+                Some(reader) => match self.read_packet(reader, &mut packet_buffer) {
+                    Err(PacketReadError::TransportError(TransportError::TimedOut)) => {}
                     Err(PacketReadError::TransportError(
                         TransportError::SerialPortDisconnected,
                     )) => {
@@ -106,7 +106,7 @@ impl SerialWorker {
                     None => {
                         trace!("serial port not found... sleeping 1 second");
 
-                        tokio::time::sleep(1.std_seconds()).await;
+                        thread::sleep(1.std_seconds());
                     }
                 },
             }
@@ -123,20 +123,23 @@ impl SerialWorker {
         (self.repaint)()
     }
 
-    fn connect(&self) -> Option<BufReader<SerialStream>> {
-        match tokio_serial::new(self.port_name.as_ref(), self.baud_rate).open_native_async() {
+    fn connect(&self) -> Option<BufReader<Box<dyn SerialPort>>> {
+        match serialport::new(self.port_name.as_ref(), self.baud_rate)
+            .timeout(Duration::from_millis(100))
+            .open()
+        {
             Ok(stream) => Some(BufReader::new(stream)),
-            Err(e) if e.kind() == tokio_serial::ErrorKind::NoDevice => None,
+            Err(e) if e.kind() == serialport::ErrorKind::NoDevice => None,
             Err(e) => panic!("{e}"),
         }
     }
 
-    async fn read_packet<'read, 'buffer>(
+    fn read_packet(
         &mut self,
-        reader: &'read mut BufReader<SerialStream>,
-        buffer: &'buffer mut Vec<u8>,
+        reader: &mut BufReader<Box<dyn SerialPort>>,
+        buffer: &mut Vec<u8>,
     ) -> Result<Metric, PacketReadError> {
-        let buffer = self.read_cobs(reader, buffer).await?;
+        let buffer = self.read_cobs(reader, buffer)?;
 
         let (packet, packet_length) = buffer.split_at(buffer.len().saturating_sub(2));
 
@@ -215,15 +218,15 @@ impl SerialWorker {
         })
     }
 
-    async fn read_cobs<'read, 'buffer>(
+    fn read_cobs<'read, 'buffer>(
         &mut self,
-        reader: &'read mut BufReader<SerialStream>,
+        reader: &'read mut BufReader<Box<dyn SerialPort>>,
         buffer: &'buffer mut Vec<u8>,
     ) -> Result<&'buffer [u8], TransportError> {
         buffer.clear();
 
         let buffer = {
-            let len = reader.read_until(0, buffer).await?;
+            let len = reader.read_until(0, buffer)?;
 
             &mut buffer[..len]
         };

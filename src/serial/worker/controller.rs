@@ -45,24 +45,16 @@ impl SerialWorkerController {
                     let port_name = Arc::clone(&port_name);
 
                     move || {
-                        let runtime = tokio::runtime::Builder::new_current_thread()
-                            .enable_time()
-                            .enable_io()
-                            .build()
-                            .unwrap();
+                        SerialWorker {
+                            port_name,
+                            baud_rate,
+                            packet_tx,
+                            connected,
+                            repaint,
 
-                        runtime.block_on(
-                            SerialWorker {
-                                port_name,
-                                baud_rate,
-                                packet_tx,
-                                connected,
-                                repaint,
-
-                                detach,
-                            }
-                            .spawn(),
-                        )
+                            detach,
+                        }
+                        .spawn()
                     }
                 })
                 .expect("failed to spawn serial worker thread"),

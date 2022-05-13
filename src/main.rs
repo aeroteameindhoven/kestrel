@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use app::Application;
 use argh::FromArgs;
@@ -36,7 +36,7 @@ fn main() -> color_eyre::Result<()> {
 
     if args.list {
         // TODO:
-        dbg!(tokio_serial::available_ports()?);
+        dbg!(serialport::available_ports()?);
 
         return Ok(());
     }
@@ -60,7 +60,7 @@ fn main() -> color_eyre::Result<()> {
                         move || ctx.request_repaint()
                     }),
                 ),
-                latest_metrics: HashMap::new(),
+                latest_metrics: BTreeMap::new(),
             })
         }),
     )

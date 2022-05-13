@@ -1,6 +1,7 @@
 use std::io;
 
 pub enum TransportError {
+    TimedOut,
     SerialPortDisconnected,
     MalformedCOBS(Box<[u8]>),
 }
@@ -8,8 +9,9 @@ pub enum TransportError {
 impl From<io::Error> for TransportError {
     fn from(error: io::Error) -> Self {
         match error.kind() {
-            io::ErrorKind::TimedOut => TransportError::SerialPortDisconnected,
-            _ => panic!("encountered IO error: {error}"),
+            io::ErrorKind::TimedOut => TransportError::TimedOut,
+            io::ErrorKind::PermissionDenied => TransportError::SerialPortDisconnected,
+            kind => panic!("encountered IO error: {error} {kind:?}"),
         }
     }
 }

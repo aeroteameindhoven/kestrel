@@ -1,12 +1,12 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use eframe::{
-    egui::{CentralPanel, Context, RichText, SidePanel, TopBottomPanel},
+    egui::{CentralPanel, Context, Layout, RichText, SidePanel, TopBottomPanel},
     epaint::Color32,
     App, Frame,
 };
 use egui_extras::{Size, TableBuilder};
-use time::OffsetDateTime;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::serial::{
     packet::{Metric, MetricValue, Packet},
@@ -16,7 +16,7 @@ use crate::serial::{
 pub struct Application {
     pub serial: SerialWorkerController,
     pub packets: Vec<(OffsetDateTime, Packet)>,
-    pub latest_metrics: HashMap<String, MetricValue>,
+    pub latest_metrics: BTreeMap<String, MetricValue>,
 }
 
 impl App for Application {
@@ -45,8 +45,8 @@ impl App for Application {
                     if ui.button("Detach").clicked() {
                         self.serial.detach();
                     }
-                    
-                    ui.label(RichText::new("Attached").color(Color32::YELLOW));
+
+                    ui.label(RichText::new("Attached").color(Color32::LIGHT_BLUE));
 
                     ui.separator();
 
@@ -64,39 +64,44 @@ impl App for Application {
             });
         });
 
-        SidePanel::left("latest_metrics").show(ctx, |ui| {
-            ui.heading("Latest Metrics");
-            ui.separator();
+        SidePanel::left("latest_metrics")
+            .min_width(250.0)
+            .show(ctx, |ui| {
+                ui.heading("Latest Metrics");
+                ui.separator();
 
-            TableBuilder::new(ui)
-                .columns(Size::remainder(), 2)
-                .striped(true)
-                .header(20.0, |mut header| {
-                    header.col(|ui| {
-                        ui.heading("Name");
-                    });
-                    header.col(|ui| {
-                        ui.heading("Value");
-                    });
-                })
-                .body(|mut body| {
-                    for (metric_name, metric_value) in self.latest_metrics.iter() {
-                        body.row(15.0, |mut row| {
-                            row.col(|ui| {
-                                ui.label(metric_name);
-                            });
-                            row.col(|ui| {
-                                ui.monospace(format!("{metric_value:?}"));
-                            });
+                TableBuilder::new(ui)
+                    .columns(Size::remainder(), 2)
+                    .striped(true)
+                    .cell_layout(Layout::left_to_right().with_main_wrap(false))
+                    .header(20.0, |mut header| {
+                        header.col(|ui| {
+                            ui.heading("Name");
                         });
-                    }
-                });
-        });
+                        header.col(|ui| {
+                            ui.heading("Value");
+                        });
+                    })
+                    .body(|mut body| {
+                        for (metric_name, metric_value) in self.latest_metrics.iter() {
+                            body.row(15.0, |mut row| {
+                                row.col(|ui| {
+                                    ui.label(metric_name);
+                                });
+                                row.col(|ui| {
+                                    ui.monospace(format!("{metric_value:?}"));
+                                });
+                            });
+                        }
+                    });
+            });
 
         CentralPanel::default().show(ctx, |ui| {
             TableBuilder::new(ui)
-                .columns(Size::remainder(), 3)
+                .column(Size::exact(7.0 * 30.0))
+                .columns(Size::remainder(), 2)
                 .striped(true)
+                .cell_layout(Layout::left_to_right().with_main_wrap(false))
                 .header(20.0, |mut header| {
                     header.col(|ui| {
                         ui.heading("Timestamp");
@@ -130,7 +135,11 @@ impl App for Application {
                         };
 
                         row.col(|ui| {
-                            ui.label(timestamp.to_string());
+                            ui.monospace(
+                                timestamp
+                                    .format(&Rfc3339)
+                                    .expect("RFC3339 should never fail to format"),
+                            );
                         });
                         row.col(|ui| {
                             ui.label(name);
