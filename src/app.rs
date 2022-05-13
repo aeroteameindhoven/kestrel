@@ -18,16 +18,16 @@ use crate::serial::{
 pub struct Application {
     pub serial: SerialWorkerController,
     pub packets: Vec<(OffsetDateTime, Packet)>,
-    pub latest_metrics: BTreeMap<MetricName, MetricValue>,
+    pub latest_metrics: BTreeMap<MetricName, (OffsetDateTime, MetricValue)>,
 }
 
 impl App for Application {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         self.packets
-            .extend(self.serial.new_packets().inspect(|(_, packet)| {
+            .extend(self.serial.new_packets().inspect(|(timestamp, packet)| {
                 if let Packet::Telemetry(metric) = packet {
                     self.latest_metrics
-                        .insert(metric.name.clone(), metric.value.clone());
+                        .insert(metric.name.clone(), (*timestamp, metric.value.clone()));
                 }
             }));
 
@@ -85,12 +85,19 @@ impl App for Application {
                         });
                     })
                     .body(|mut body| {
-                        for (metric_name, metric_value) in self.latest_metrics.iter() {
+                        for (metric_name, (timestamp, metric_value)) in self.latest_metrics.iter() {
                             body.row(15.0, |mut row| {
                                 row.col(|ui| {
                                     ui.label(metric_name_text(metric_name));
                                 });
                                 row.col(|ui| {
+                                    // TODO: visualize stale data
+                                    // let elapsed = OffsetDateTime::now_utc() - *timestamp;
+                                    // let elapsed = elapsed.as_seconds_f32();
+
+                                    // let color =
+                                    //     Color32::GREEN.linear_multiply((1.0 - elapsed).max(0.0));
+
                                     ui.monospace(format!("{metric_value:?}"));
                                 });
                             });
