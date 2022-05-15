@@ -7,8 +7,6 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use time::OffsetDateTime;
-
 use crate::serial::packet::Packet;
 
 use super::{detacher, SerialWorker};
@@ -18,7 +16,7 @@ pub struct SerialWorkerController {
 
     connected: Arc<AtomicBool>,
     detach: Arc<AtomicBool>,
-    packet_rx: Receiver<(OffsetDateTime, Packet)>,
+    packet_rx: Receiver<Packet>,
 
     handle: Arc<JoinHandle<()>>,
 }
@@ -102,7 +100,7 @@ impl SerialWorkerController {
         self.port_name.as_ref()
     }
 
-    pub fn new_packets(&self) -> impl Iterator<Item = (OffsetDateTime, Packet)> + '_ {
+    pub fn new_packets(&self) -> impl Iterator<Item = Packet> + '_ {
         self.packet_rx.try_iter()
     }
 }

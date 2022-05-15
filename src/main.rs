@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use app::Application;
 use argh::FromArgs;
 use eframe::NativeOptions;
+use ringbuffer::AllocRingBuffer;
 use serial::worker::SerialWorkerController;
 use tracing_subscriber::filter::LevelFilter;
 
@@ -50,7 +51,7 @@ fn main() -> color_eyre::Result<()> {
         },
         Box::new(move |ctx| {
             Box::new(Application {
-                packets: Vec::new(),
+                packets: AllocRingBuffer::with_capacity(8192),
                 serial: SerialWorkerController::spawn(
                     args.port,
                     baud,
@@ -61,6 +62,7 @@ fn main() -> color_eyre::Result<()> {
                     }),
                 ),
                 latest_metrics: BTreeMap::new(),
+                current_time: 0,
             })
         }),
     )

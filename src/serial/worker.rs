@@ -11,7 +11,6 @@ use std::{
 };
 
 use serialport::SerialPort;
-use time::{ext::NumericalStdDuration, OffsetDateTime};
 use tracing::{debug, info, trace, warn};
 
 mod controller;
@@ -29,7 +28,7 @@ use super::packet::{Metric, Packet};
 struct SerialWorker {
     port_name: Arc<str>,
     baud_rate: u32,
-    packet_tx: Sender<(OffsetDateTime, Packet)>,
+    packet_tx: Sender<Packet>,
     connected: Arc<AtomicBool>,
     repaint: Box<dyn Fn()>,
 
@@ -106,7 +105,7 @@ impl SerialWorker {
                     None => {
                         trace!("serial port not found... sleeping 1 second");
 
-                        thread::sleep(1.std_seconds());
+                        thread::sleep(Duration::from_millis(1000));
                     }
                 },
             }
@@ -114,9 +113,7 @@ impl SerialWorker {
     }
 
     fn send_packet(&self, packet: Packet) {
-        self.packet_tx
-            .send((OffsetDateTime::now_utc(), packet))
-            .expect("ui thread has exited");
+        self.packet_tx.send(packet).expect("ui thread has exited");
     }
 
     fn repaint(&self) {
@@ -141,23 +138,40 @@ impl SerialWorker {
     ) -> Result<Metric, PacketReadError> {
         let buffer = self.read_cobs(reader, buffer)?;
 
-        let (packet, packet_length) = buffer.split_at(buffer.len().saturating_sub(2));
+        let packet = {
+            let (packet, packet_length) = buffer.split_at(buffer.len().saturating_sub(2));
 
-        let packet_length =
-            packet_length
-                .try_into()
-                .map_err(|_| PacketReadError::BadPacketLength {
-                    expected: None,
+            let packet_length =
+                packet_length
+                    .try_into()
+                    .map_err(|_| PacketReadError::BadPacketLength {
+                        expected: None,
+                        got: packet.len(),
+                    })?;
+            let packet_length = u16::from_le_bytes(packet_length) as usize - size_of::<u16>();
+
+            if packet_length != packet.len() {
+                return Err(PacketReadError::BadPacketLength {
+                    expected: Some(packet_length),
                     got: packet.len(),
-                })?;
-        let packet_length = u16::from_le_bytes(packet_length) as usize - size_of::<u16>();
+                });
+            }
 
-        if packet_length != packet.len() {
-            return Err(PacketReadError::BadPacketLength {
-                expected: Some(packet_length),
-                got: packet.len(),
-            });
-        }
+            packet
+        };
+
+        let (packet, timestamp) = {
+            // Should never panic since packet length has been verified
+            let (timestamp, packet) = packet.split_at(size_of::<u32>());
+
+            let timestamp = u32::from_le_bytes(
+                timestamp
+                    .try_into()
+                    .expect("timestamp should always be one u32 wide"),
+            );
+
+            (packet, timestamp)
+        };
 
         let mut split = packet.splitn(3, |&b| b == 0x00);
 
@@ -213,6 +227,7 @@ impl SerialWorker {
         };
 
         Ok(Metric {
+            timestamp,
             name: metric_name
                 .parse()
                 .expect("metric name parsing must never fail"),

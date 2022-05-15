@@ -14,6 +14,7 @@ pub enum SystemPacket {
 
 #[derive(Debug)]
 pub struct Metric {
+    pub timestamp: u32,
     pub name: MetricName,
     pub value: MetricValue,
 }
