@@ -284,8 +284,8 @@ impl App for Application {
                     };
 
                     let arrow_base = robot_rect.center() + 13.0 * direction;
-                    let arrow_tip =
-                        arrow_base + direction * ((robot_rect.height() / 4.0 * speed.abs() as f32) - 13.0);
+                    let arrow_tip = arrow_base
+                        + direction * ((robot_rect.height() / 4.0 * speed.abs() as f32) - 13.0);
 
                     let shapes = [
                         Shape::line(vec![arrow_base, arrow_tip], Stroke::new(7.0, color)),
