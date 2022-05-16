@@ -1,2 +1,2 @@
-pub mod worker;
 pub mod packet;
+pub mod worker;

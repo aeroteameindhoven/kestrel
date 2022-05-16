@@ -1,5 +1,7 @@
 use std::io;
 
+use crate::serial::packet::MetricValueError;
+
 pub enum TransportError {
     TimedOut,
     SerialPortDisconnected,
@@ -19,18 +21,25 @@ impl From<io::Error> for TransportError {
 pub enum PacketReadError {
     PoorLayout { section: usize, packet: Box<[u8]> },
     BadPacketLength { expected: Option<usize>, got: usize },
-    BadValueLength { expected: usize, got: usize },
-    TransportError(TransportError),
+
+    MetricValue(MetricValueError),
+    Transport(TransportError),
 }
 
 impl From<TransportError> for PacketReadError {
-    fn from(e: TransportError) -> Self {
-        Self::TransportError(e)
+    fn from(error: TransportError) -> Self {
+        Self::Transport(error)
     }
 }
 
 impl From<io::Error> for PacketReadError {
     fn from(error: io::Error) -> Self {
-        Self::TransportError(error.into())
+        Self::Transport(error.into())
+    }
+}
+
+impl From<MetricValueError> for PacketReadError {
+    fn from(error: MetricValueError) -> Self {
+        Self::MetricValue(error)
     }
 }

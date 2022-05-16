@@ -11,7 +11,7 @@ use std::{
 };
 
 use serialport::SerialPort;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 mod controller;
 mod detacher;
@@ -23,7 +23,7 @@ use crate::serial::packet::{MetricValue, SystemPacket};
 
 use self::error::{PacketReadError, TransportError};
 
-use super::packet::{Metric, Packet};
+use super::packet::{Metric, MetricValueError, Packet};
 
 struct SerialWorker {
     port_name: Arc<str>,
@@ -59,10 +59,8 @@ impl SerialWorker {
 
             match &mut opt_reader {
                 Some(reader) => match self.read_packet(reader, &mut packet_buffer) {
-                    Err(PacketReadError::TransportError(TransportError::TimedOut)) => {}
-                    Err(PacketReadError::TransportError(
-                        TransportError::SerialPortDisconnected,
-                    )) => {
+                    Err(PacketReadError::Transport(TransportError::TimedOut)) => {}
+                    Err(PacketReadError::Transport(TransportError::SerialPortDisconnected)) => {
                         info!("serial port disconnected");
 
                         opt_reader = None;
@@ -71,11 +69,14 @@ impl SerialWorker {
                         self.send_packet(Packet::System(SystemPacket::SerialDisconnect));
                         self.repaint();
                     }
-                    Err(PacketReadError::TransportError(TransportError::MalformedCOBS(data))) => {
+                    Err(PacketReadError::Transport(TransportError::MalformedCOBS(data))) => {
                         warn!(?data, "Received malformed COBS data");
                     }
-                    Err(PacketReadError::BadValueLength { expected, got }) => {
-                        debug!(%expected, %got, "Value did not match expected length");
+                    Err(PacketReadError::MetricValue(MetricValueError::BadLength {
+                        expected,
+                        got,
+                    })) => {
+                        error!(%expected, %got, "Metric value did not match expected length");
                     }
                     Err(PacketReadError::BadPacketLength { expected, got }) => {
                         debug!(
@@ -192,39 +193,7 @@ impl SerialWorker {
             packet: Box::from(packet),
         })?;
 
-        macro_rules! metric {
-            (as $ty:ty) => {
-                <$ty>::from_le_bytes(metric.try_into().map_err(|_| {
-                    PacketReadError::BadValueLength {
-                        expected: size_of::<$ty>(),
-                        got: metric.len(),
-                    }
-                })?)
-            };
-        }
-
-        let metric_value = match metric_type.as_str() {
-            "u8" => MetricValue::U8(metric!(as u8)),
-            "u16" => MetricValue::U16(metric!(as u16)),
-            "u32" => MetricValue::U32(metric!(as u32)),
-            "u64" => MetricValue::U64(metric!(as u64)),
-
-            "i8" => MetricValue::I8(metric!(as i8)),
-            "i16" => MetricValue::I16(metric!(as i16)),
-            "i32" => MetricValue::I32(metric!(as i32)),
-            "i64" => MetricValue::I64(metric!(as i64)),
-
-            "bool" => MetricValue::Bool(metric!(as u8) != 0),
-
-            "f32" => MetricValue::F32(metric!(as f32)),
-            "f64" => MetricValue::F64(metric!(as f64)),
-
-            _ => {
-                warn!(%metric_type, "received metric of unknown type");
-
-                MetricValue::Unknown(metric_type, Box::from(metric))
-            }
-        };
+        let metric_value = MetricValue::from_bytes(metric_type, metric)?;
 
         Ok(Metric {
             timestamp,
