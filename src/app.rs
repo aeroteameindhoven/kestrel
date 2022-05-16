@@ -237,7 +237,7 @@ impl App for Application {
                     .get(&MetricName::namespaced("ultrasonic", "distance"))
                 {
                     let ultrasonic_vector = (square_dimension / 5.0)
-                        * (us_distance.as_i128().unwrap_or_default() as f32 / 3000.0)
+                        * (us_distance.as_i128().unwrap_or_default() as f32 / 300.0)
                         * Vec2::Y;
 
                     let mut shapes = Shape::dashed_line(
@@ -277,29 +277,31 @@ impl App for Application {
                 {
                     let speed = speed.as_f64().unwrap_or_default();
 
-                    let (color, align, direction) = if speed > 0.0 {
-                        (Color32::RED, Align2::CENTER_BOTTOM, Vec2::Y * -1.0)
-                    } else {
-                        (Color32::BLUE, Align2::CENTER_TOP, Vec2::Y)
-                    };
+                    if speed.abs() > f64::EPSILON {
+                        let (color, align, direction) = if speed > 0.0 {
+                            (Color32::RED, Align2::CENTER_BOTTOM, Vec2::Y * -1.0)
+                        } else {
+                            (Color32::BLUE, Align2::CENTER_TOP, Vec2::Y)
+                        };
 
-                    let arrow_base = robot_rect.center() + 13.0 * direction;
-                    let arrow_tip = arrow_base
-                        + direction * ((robot_rect.height() / 4.0 * speed.abs() as f32) - 13.0);
+                        let arrow_base = robot_rect.center() + 13.0 * direction;
+                        let arrow_tip = arrow_base
+                            + direction * ((robot_rect.height() / 4.0 * speed.abs() as f32) - 13.0);
 
-                    let shapes = [
-                        Shape::line(vec![arrow_base, arrow_tip], Stroke::new(7.0, color)),
-                        Shape::text(
-                            &ui.fonts(),
-                            arrow_tip,
-                            align,
-                            format!("{speed:.3}"),
-                            FontId::monospace(15.0),
-                            color,
-                        ),
-                    ];
+                        let shapes = [
+                            Shape::line(vec![arrow_base, arrow_tip], Stroke::new(7.0, color)),
+                            Shape::text(
+                                &ui.fonts(),
+                                arrow_tip,
+                                align,
+                                format!("{speed:.3}"),
+                                FontId::monospace(15.0),
+                                color,
+                            ),
+                        ];
 
-                    ui.painter().extend(shapes.to_vec());
+                        ui.painter().extend(shapes.to_vec());
+                    }
                 }
             });
     }
