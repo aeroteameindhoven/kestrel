@@ -210,11 +210,12 @@ impl App for Application {
             .show(ctx, |ui| {
                 let canvas = ui.available_rect_before_wrap();
 
+                // TODO: better (native) canvas coordinates
                 let square_dimension = canvas.width().min(canvas.height());
 
                 let robot_rect = Rect::from_center_size(
                     canvas.center(),
-                    Vec2::new(square_dimension / 2.0, square_dimension * 3.0 / 5.0),
+                    Vec2::new(square_dimension / 2.0, square_dimension / 2.0),
                 );
 
                 let robot = [
@@ -232,31 +233,52 @@ impl App for Application {
 
                 ui.painter().extend(robot.to_vec());
 
-                if let Some((_, us_distance)) = self
-                    .latest_metrics
-                    .get(&MetricName::namespaced("ultrasonic", "distance"))
-                {
-                    let ultrasonic_vector = (square_dimension / 5.0)
-                        * (us_distance.as_i128().unwrap_or_default() as f32 / 300.0)
-                        * Vec2::Y;
+                if let Some((distance, heading)) = Option::zip(
+                    self.latest_metrics
+                        .get(&MetricName::namespaced("ultrasonic", "distance"))
+                        .and_then(|(_, distance)| distance.as_i128()),
+                    self.latest_metrics
+                        .get(&MetricName::namespaced("ultrasonic", "heading"))
+                        .and_then(|(_, heading)| heading.as_i128()),
+                ) {
+                    let heading_length = square_dimension / 4.0 - 15.0;
+                    let ultrasonic_heading = (heading_length * (distance as f32 / 300.0))
+                        * Vec2::angled((heading as f32 + 90.0).to_radians());
 
                     let mut shapes = Shape::dashed_line(
                         &[
                             robot_rect.center_top(),
-                            robot_rect.center_top() - ultrasonic_vector,
+                            robot_rect.center_top() - heading_length * Vec2::Y,
                         ],
-                        Stroke::new(2.0, Color32::RED),
-                        2.0,
-                        2.0,
+                        Stroke::new(4.0, Color32::RED),
+                        4.0,
+                        8.0,
                     );
+
+                    shapes.push(Shape::line_segment(
+                        [
+                            robot_rect.center_top(),
+                            robot_rect.center_top() - ultrasonic_heading,
+                        ],
+                        Stroke::new(2.0, Color32::KHAKI),
+                    ));
 
                     shapes.push(Shape::text(
                         &ui.fonts(),
-                        robot_rect.center_top() - ultrasonic_vector,
+                        robot_rect.center_top() - ultrasonic_heading,
                         Align2::CENTER_BOTTOM,
-                        format!("{}cm", us_distance.value()),
+                        format!("{}cm", distance),
                         FontId::monospace(15.0),
                         Color32::KHAKI,
+                    ));
+
+                    shapes.push(Shape::text(
+                        &ui.fonts(),
+                        robot_rect.center_top() + 15.0 * Vec2::Y,
+                        Align2::CENTER_TOP,
+                        format!("heading: {heading}°"),
+                        FontId::monospace(15.0),
+                        Color32::BLUE,
                     ));
 
                     shapes.push(Shape::text(
@@ -269,16 +291,17 @@ impl App for Application {
                     ));
 
                     ui.painter().extend(shapes);
+                } else {
+                    // TODO: warn if missing telemetry?
                 }
 
-                if let Some((_, speed)) = self
+                if let Some(speed) = self
                     .latest_metrics
                     .get(&MetricName::namespaced("motor", "drive_speed"))
+                    .and_then(|(_, speed)| speed.as_f64())
                 {
-                    let speed = speed.as_f64().unwrap_or_default();
-
                     if speed.abs() > f64::EPSILON {
-                        let (color, align, direction) = if speed > 0.0 {
+                        let (color, align, direction) = if speed.is_sign_positive() {
                             (Color32::RED, Align2::CENTER_BOTTOM, Vec2::Y * -1.0)
                         } else {
                             (Color32::BLUE, Align2::CENTER_TOP, Vec2::Y)
