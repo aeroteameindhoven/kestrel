@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use eframe::{
     egui::{
-        self, CentralPanel, Context, Layout, RichText, SidePanel, TextFormat, TopBottomPanel,
-        WidgetText,
+        self, CentralPanel, Context, Layout, RichText, Sense, TextFormat, TopBottomPanel,
+        WidgetText, Window,
     },
     emath::{Align2, Rect, Vec2},
     epaint::{text::LayoutJob, Color32, FontId, Shape, Stroke},
@@ -73,19 +73,17 @@ impl App for Application {
             });
         });
 
-        SidePanel::left("metrics").min_width(250.0).show(ctx, |ui| {
-            TopBottomPanel::top("reset").show_inside(ui, |ui| {
-                ui.horizontal(|ui| {
-                    if ui.button("Reset Clock").clicked() {
-                        self.current_time = 0;
-                    }
-                    if ui.button("Clear Latest Metrics").clicked() {
-                        self.latest_metrics.clear();
-                    }
-                    if ui.button("Clear Packets").clicked() {
-                        self.packets.clear();
-                    }
-                });
+        CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("Reset Clock").clicked() {
+                    self.current_time = 0;
+                }
+                if ui.button("Clear Latest Metrics").clicked() {
+                    self.latest_metrics.clear();
+                }
+                if ui.button("Clear Packets").clicked() {
+                    self.packets.clear();
+                }
             });
 
             ui.heading(format!(
@@ -100,6 +98,7 @@ impl App for Application {
                 .column(Size::initial(7.0 * 5.0))
                 .column(Size::remainder())
                 .striped(true)
+                .resizable(true)
                 .cell_layout(Layout::left_to_right().with_main_wrap(false))
                 .header(20.0, |mut header| {
                     header.col(|ui| {
@@ -140,14 +139,15 @@ impl App for Application {
                     }
                 });
 
-            ui.separator();
             ui.heading(format!("{} Packets", self.packets.len()));
 
             ui.push_id("Packets", |ui| {
                 TableBuilder::new(ui)
                     .column(Size::exact(7.0 * 9.0))
-                    .columns(Size::remainder(), 2)
+                    .column(Size::initial(100.0))
+                    .column(Size::remainder())
                     .striped(true)
+                    .resizable(true)
                     .cell_layout(Layout::left_to_right().with_main_wrap(false))
                     .header(20.0, |mut header| {
                         header.col(|ui| {
@@ -205,10 +205,13 @@ impl App for Application {
             });
         });
 
-        CentralPanel::default()
+        Window::new("Visualization")
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
-                let canvas = ui.available_rect_before_wrap();
+                let (canvas, response) = ui.allocate_exact_size(
+                    ui.available_rect_before_wrap().size(),
+                    Sense::focusable_noninteractive(),
+                );
 
                 // TODO: better (native) canvas coordinates
                 let square_dimension = canvas.width().min(canvas.height());
@@ -236,10 +239,10 @@ impl App for Application {
                 if let Some((distance, heading)) = Option::zip(
                     self.latest_metrics
                         .get(&MetricName::namespaced("ultrasonic", "distance"))
-                        .and_then(|(_, distance)| distance.as_i128()),
+                        .and_then(|(_, distance)| distance.as_integer()),
                     self.latest_metrics
                         .get(&MetricName::namespaced("ultrasonic", "heading"))
-                        .and_then(|(_, heading)| heading.as_i128()),
+                        .and_then(|(_, heading)| heading.as_integer()),
                 ) {
                     let heading_length = square_dimension / 4.0 - 15.0;
                     let ultrasonic_heading = (heading_length * (distance as f32 / 300.0))
@@ -298,7 +301,7 @@ impl App for Application {
                 if let Some(speed) = self
                     .latest_metrics
                     .get(&MetricName::namespaced("motor", "drive_speed"))
-                    .and_then(|(_, speed)| speed.as_f64())
+                    .and_then(|(_, speed)| speed.as_float())
                 {
                     if speed.abs() > f64::EPSILON {
                         let (color, align, direction) = if speed.is_sign_positive() {

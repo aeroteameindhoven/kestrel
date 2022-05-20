@@ -1,7 +1,10 @@
 use std::io;
 
+use tracing::error;
+
 use crate::serial::packet::MetricValueError;
 
+#[derive(Debug)]
 pub enum TransportError {
     TimedOut,
     SerialPortDisconnected,
@@ -13,7 +16,10 @@ impl From<io::Error> for TransportError {
         match error.kind() {
             io::ErrorKind::TimedOut => TransportError::TimedOut,
             io::ErrorKind::PermissionDenied => TransportError::SerialPortDisconnected,
-            kind => panic!("encountered IO error: {error} {kind:?}"),
+            kind => {
+                error!("encountered IO error: {error} {kind:?}");
+                TransportError::SerialPortDisconnected
+            }
         }
     }
 }

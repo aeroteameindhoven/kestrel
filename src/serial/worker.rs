@@ -219,7 +219,7 @@ impl SerialWorker {
 
         match postcard_cobs::decode_in_place(buffer) {
             Ok(len) => Ok(&buffer[..len.saturating_sub(1)]),
-            Err(()) => Err(TransportError::MalformedCOBS(Box::from(&buffer[..]))),
+            Err(()) => Err(TransportError::MalformedCOBS(Box::from(&*buffer))),
         }
     }
 }
