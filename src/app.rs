@@ -143,7 +143,7 @@ impl App for Application {
 
             ui.push_id("Packets", |ui| {
                 TableBuilder::new(ui)
-                    .column(Size::exact(7.0 * 9.0))
+                    .column(Size::exact(7.0 * 10.0))
                     .column(Size::initial(100.0))
                     .column(Size::remainder())
                     .striped(true)
@@ -236,6 +236,32 @@ impl App for Application {
 
                 ui.painter().extend(robot.to_vec());
 
+                let heading_length = square_dimension / 4.0 - 15.0;
+                let get_heading = |distance, heading| {
+                    (heading_length * (distance as f32 / 300.0))
+                        * Vec2::angled((heading as f32 + 90.0).to_radians())
+                };
+
+                if let Some(front_points) = self
+                    .latest_metrics
+                    .get(&MetricName::namespaced("ultrasonic", "last_readings"))
+                    .and_then(|(_, distance)| distance.as_integer_iter())
+                {
+                    ui.painter().extend(
+                        front_points
+                            .enumerate()
+                            .map(|(heading, distance)| {
+                                Shape::circle_filled(
+                                    robot_rect.center_top()
+                                        - get_heading(distance, heading as i128 - 90),
+                                    1.0,
+                                    Color32::WHITE,
+                                )
+                            })
+                            .collect(),
+                    );
+                }
+
                 if let Some((distance, heading)) = Option::zip(
                     self.latest_metrics
                         .get(&MetricName::namespaced("ultrasonic", "distance"))
@@ -244,9 +270,7 @@ impl App for Application {
                         .get(&MetricName::namespaced("ultrasonic", "heading"))
                         .and_then(|(_, heading)| heading.as_integer()),
                 ) {
-                    let heading_length = square_dimension / 4.0 - 15.0;
-                    let ultrasonic_heading = (heading_length * (distance as f32 / 300.0))
-                        * Vec2::angled((heading as f32 + 90.0).to_radians());
+                    let ultrasonic_heading = get_heading(distance, heading);
 
                     let mut shapes = Shape::dashed_line(
                         &[

@@ -191,11 +191,39 @@ impl MetricValue {
         }
     }
 
+    pub fn as_integer_iter(&self) -> Option<Box<dyn Iterator<Item = i128> + '_>> {
+        match self {
+            MetricValue::Many(value) => match value {
+                ManyValues::U8(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                ManyValues::U16(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                ManyValues::U32(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                ManyValues::U64(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                ManyValues::I8(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                ManyValues::I16(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                ManyValues::I32(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                ManyValues::I64(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     pub fn as_float(&self) -> Option<f64> {
         match self {
             MetricValue::One(value) => match value {
                 OneValue::F32(value) => Some(f64::from(*value)),
                 OneValue::F64(value) => Some(*value),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    pub fn as_float_iter(&self) -> Option<Box<dyn Iterator<Item = f64> + '_>> {
+        match self {
+            MetricValue::Many(value) => match value {
+                ManyValues::F32(value) => Some(Box::new(value.iter().copied().map(f64::from))),
+                ManyValues::F64(value) => Some(Box::new(value.iter().copied())),
                 _ => None,
             },
             _ => None,
