@@ -15,7 +15,7 @@ mod serial;
 struct Args {
     /// serial port to connect to on startup
     #[argh(positional)]
-    port: String,
+    port: Option<String>,
 
     /// default baud rate to use
     #[argh(option)]
@@ -42,7 +42,16 @@ fn main() -> color_eyre::Result<()> {
         return Ok(());
     }
 
-    let baud = args.baud.unwrap_or(9600);
+    let baud = args.baud.unwrap_or(115200);
+    let port = if let Some(port) = args.port {
+        port
+    } else {
+        serialport::available_ports()?
+            .first()
+            .expect("no serial port available")
+            .port_name
+            .clone()
+    };
 
     eframe::run_native(
         env!("CARGO_PKG_NAME"),
@@ -53,7 +62,7 @@ fn main() -> color_eyre::Result<()> {
             Box::new(Application {
                 packets: AllocRingBuffer::with_capacity(8192),
                 serial: SerialWorkerController::spawn(
-                    args.port,
+                    port,
                     baud,
                     Box::new({
                         let ctx = ctx.egui_ctx.clone();
