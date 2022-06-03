@@ -1,3 +1,5 @@
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
+
 use std::collections::BTreeMap;
 
 use app::Application;
@@ -31,6 +33,7 @@ fn main() -> color_eyre::Result<()> {
     tracing_subscriber::fmt()
         .with_max_level(LevelFilter::TRACE)
         .compact()
+        .with_ansi(cfg!(debug_assertions))
         .init();
 
     let args: Args = argh::from_env();
