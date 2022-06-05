@@ -18,6 +18,9 @@ use crate::serial::{
 };
 
 pub struct Application {
+    pub pause_packets: bool,
+    pub show_visualization: bool,
+    pub persist_across_detach: bool,
     pub serial: SerialWorkerController,
     pub packets: AllocRingBuffer<Packet>,
     pub current_time: u32,
@@ -26,17 +29,25 @@ pub struct Application {
 
 impl App for Application {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        self.packets
-            .extend(self.serial.new_packets().inspect(|packet| {
-                if let Packet::Telemetry(metric) = packet {
-                    self.latest_metrics.insert(
-                        metric.name.clone(),
-                        (metric.timestamp, metric.value.clone()),
-                    );
+        if !self.pause_packets {
+            self.packets
+                .extend(self.serial.new_packets().inspect(|packet| {
+                    if let Packet::Telemetry(metric) = packet {
+                        self.latest_metrics.insert(
+                            metric.name.clone(),
+                            (metric.timestamp, metric.value.clone()),
+                        );
 
-                    self.current_time = metric.timestamp.max(self.current_time);
-                }
-            }));
+                        self.current_time = metric.timestamp;
+                    }
+                }));
+        }
+
+        if !self.persist_across_detach && self.serial.detached() {
+            self.packets.clear();
+            self.latest_metrics.clear();
+            self.current_time = 0;
+        }
 
         TopBottomPanel::top("serial_info").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -74,7 +85,7 @@ impl App for Application {
         });
 
         CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal(|ui| {
+            ui.horizontal_wrapped(|ui| {
                 if ui.button("Reset Clock").clicked() {
                     self.current_time = 0;
                 }
@@ -84,6 +95,12 @@ impl App for Application {
                 if ui.button("Clear Packets").clicked() {
                     self.packets.clear();
                 }
+                if ui.button("Clear All").clicked() {
+                    self.current_time = 0;
+                    self.latest_metrics.clear();
+                    self.packets.clear();
+                }
+                ui.checkbox(&mut self.show_visualization, "Show Visualization");
             });
 
             ui.heading(format!(
@@ -139,6 +156,14 @@ impl App for Application {
                     }
                 });
 
+            ui.separator();
+            ui.horizontal_wrapped(|ui| {
+                ui.checkbox(
+                    &mut self.persist_across_detach,
+                    "Persist packets across detaches",
+                );
+                ui.checkbox(&mut self.pause_packets, "Pause packets");
+            });
             ui.heading(format!("{} Packets", self.packets.len()));
 
             ui.push_id("Packets", |ui| {
@@ -206,6 +231,7 @@ impl App for Application {
         });
 
         Window::new("Visualization")
+            .open(&mut self.show_visualization)
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
                 let (canvas, response) = ui.allocate_exact_size(

@@ -61,6 +61,9 @@ fn main() -> color_eyre::Result<()> {
         },
         Box::new(move |ctx| {
             Box::new(Application {
+                pause_packets: false,
+                show_visualization: false,
+                persist_across_detach: false,
                 packets: AllocRingBuffer::with_capacity(8192),
                 serial: SerialWorkerController::spawn(
                     port,
