@@ -5,7 +5,11 @@
     clippy::cast_lossless
 )]
 
-use std::{convert::Infallible, fmt::Debug, str::FromStr};
+use std::{
+    convert::Infallible,
+    fmt::{self, Debug, Display},
+    str::FromStr,
+};
 
 #[derive(Debug)]
 pub enum Packet {
@@ -142,6 +146,11 @@ impl MetricValue {
     }
 
     #[inline]
+    pub fn value_pretty(&self) -> String {
+        format!("{:#?}", self.ty_value().1)
+    }
+
+    #[inline]
     fn ty_value(&self) -> (&str, &dyn Debug) {
         match self {
             MetricValue::One(value) => match value {
@@ -174,38 +183,86 @@ impl MetricValue {
         }
     }
 
-    pub fn as_integer(&self) -> Option<i128> {
+    pub fn is_bool(&self) -> bool {
+        self.as_bool().is_some()
+    }
+
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            MetricValue::One(OneValue::Bool(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
+    pub fn as_bool_iter(&self) -> Option<Box<dyn Iterator<Item = bool> + '_>> {
+        match self {
+            MetricValue::Many(ManyValues::Bool(value)) => Some(Box::new(value.iter().copied())),
+            _ => None,
+        }
+    }
+
+    pub fn is_unsigned_integer(&self) -> bool {
+        self.as_unsigned_integer().is_some()
+    }
+
+    pub fn as_unsigned_integer(&self) -> Option<u64> {
         match self {
             MetricValue::One(value) => match value {
-                OneValue::U8(value) => Some(i128::from(*value)),
-                OneValue::U16(value) => Some(i128::from(*value)),
-                OneValue::U32(value) => Some(i128::from(*value)),
-                OneValue::U64(value) => Some(i128::from(*value)),
-                OneValue::I8(value) => Some(i128::from(*value)),
-                OneValue::I16(value) => Some(i128::from(*value)),
-                OneValue::I32(value) => Some(i128::from(*value)),
-                OneValue::I64(value) => Some(i128::from(*value)),
+                OneValue::U8(value) => Some(u64::from(*value)),
+                OneValue::U16(value) => Some(u64::from(*value)),
+                OneValue::U32(value) => Some(u64::from(*value)),
+                OneValue::U64(value) => Some(*value),
                 _ => None,
             },
             _ => None,
         }
     }
 
-    pub fn as_integer_iter(&self) -> Option<Box<dyn Iterator<Item = i128> + '_>> {
+    pub fn as_unsigned_integer_iter(&self) -> Option<Box<dyn Iterator<Item = u64> + '_>> {
         match self {
             MetricValue::Many(value) => match value {
-                ManyValues::U8(value) => Some(Box::new(value.iter().copied().map(i128::from))),
-                ManyValues::U16(value) => Some(Box::new(value.iter().copied().map(i128::from))),
-                ManyValues::U32(value) => Some(Box::new(value.iter().copied().map(i128::from))),
-                ManyValues::U64(value) => Some(Box::new(value.iter().copied().map(i128::from))),
-                ManyValues::I8(value) => Some(Box::new(value.iter().copied().map(i128::from))),
-                ManyValues::I16(value) => Some(Box::new(value.iter().copied().map(i128::from))),
-                ManyValues::I32(value) => Some(Box::new(value.iter().copied().map(i128::from))),
-                ManyValues::I64(value) => Some(Box::new(value.iter().copied().map(i128::from))),
+                ManyValues::U8(value) => Some(Box::new(value.iter().copied().map(u64::from))),
+                ManyValues::U16(value) => Some(Box::new(value.iter().copied().map(u64::from))),
+                ManyValues::U32(value) => Some(Box::new(value.iter().copied().map(u64::from))),
+                ManyValues::U64(value) => Some(Box::new(value.iter().copied().map(u64::from))),
                 _ => None,
             },
             _ => None,
         }
+    }
+
+    pub fn is_signed_integer(&self) -> bool {
+        self.as_signed_integer().is_some()
+    }
+
+    pub fn as_signed_integer(&self) -> Option<i64> {
+        match self {
+            MetricValue::One(value) => match value {
+                OneValue::I8(value) => Some(i64::from(*value)),
+                OneValue::I16(value) => Some(i64::from(*value)),
+                OneValue::I32(value) => Some(i64::from(*value)),
+                OneValue::I64(value) => Some(*value),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    pub fn as_signed_integer_iter(&self) -> Option<Box<dyn Iterator<Item = i64> + '_>> {
+        match self {
+            MetricValue::Many(value) => match value {
+                ManyValues::I8(value) => Some(Box::new(value.iter().copied().map(i64::from))),
+                ManyValues::I16(value) => Some(Box::new(value.iter().copied().map(i64::from))),
+                ManyValues::I32(value) => Some(Box::new(value.iter().copied().map(i64::from))),
+                ManyValues::I64(value) => Some(Box::new(value.iter().copied().map(i64::from))),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    pub fn is_float(&self) -> bool {
+        self.as_float().is_some()
     }
 
     pub fn as_float(&self) -> Option<f64> {
@@ -247,6 +304,15 @@ impl MetricName {
 
     pub fn global(name: impl Into<String>) -> Self {
         Self::Global(name.into())
+    }
+}
+
+impl Display for MetricName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MetricName::Namespaced { namespace, name } => write!(f, "{namespace}:{name}"),
+            MetricName::Global(name) => Display::fmt(name, f),
+        }
     }
 }
 

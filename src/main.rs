@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use app::Application;
 use argh::FromArgs;
@@ -63,8 +63,15 @@ fn main() -> color_eyre::Result<()> {
             Box::new(Application {
                 pause_packets: false,
                 show_visualization: false,
-                persist_across_detach: false,
-                packets: AllocRingBuffer::with_capacity(8192),
+                connect_the_dots: true,
+
+                packets: new_packet_ring_buffer(),
+                metrics_history: BTreeMap::new(),
+
+                current_time: 0,
+
+                focused_metrics: BTreeSet::new(),
+
                 serial: SerialWorkerController::spawn(
                     port,
                     baud,
@@ -74,9 +81,11 @@ fn main() -> color_eyre::Result<()> {
                         move || ctx.request_repaint()
                     }),
                 ),
-                latest_metrics: BTreeMap::new(),
-                current_time: 0,
             })
         }),
     )
+}
+
+pub fn new_packet_ring_buffer<T>() -> AllocRingBuffer<T> {
+    AllocRingBuffer::with_capacity(8192)
 }
