@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use eframe::{
-    egui::{self, CentralPanel, Context, RichText, TopBottomPanel, Window},
+    egui::{self, Button, CentralPanel, Context, RichText, TopBottomPanel, Window},
     epaint::Color32,
     App,
 };
@@ -10,7 +10,9 @@ use ringbuffer::{AllocRingBuffer, RingBuffer, RingBufferExt, RingBufferWrite};
 use crate::{
     new_metric_ring_buffer,
     serial::{
-        metric::{name::MetricName, timestamp::Timestamp, value::MetricValue, Metric},
+        metric::{
+            name::MetricName, timestamp::Timestamp, value::MetricValue, Metric, RobotCommand,
+        },
         worker::{SerialWorkerController, SerialWorkerState},
     },
     visualization::{
@@ -31,6 +33,7 @@ pub struct Application {
     pub raw_metrics: AllocRingBuffer<Metric>,
     pub sorted_metrics: BTreeMap<MetricName, AllocRingBuffer<(Timestamp, MetricValue)>>,
 
+    pub hidden_metrics: BTreeSet<MetricName>,
     pub focused_metrics: BTreeSet<MetricName>,
 }
 
@@ -109,6 +112,19 @@ impl App for Application {
             });
         });
 
+        TopBottomPanel::top("commands").show(ctx, |ui| {
+            ui.heading("Robot Commands");
+            ui.horizontal_wrapped(|ui| {
+                if ui.button("Store Ambient Infrared Measurements").clicked() {
+                    self.serial.send_command(RobotCommand::StoreInfraredAmbient);
+                }
+                if ui.button("Store Reference Infrared Measurements").clicked() {
+                    self.serial
+                        .send_command(RobotCommand::StoreInfraredReference);
+                }
+            });
+        });
+
         CentralPanel::default().show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 ui.heading(format!("Current time: {}", self.current_time));
@@ -126,30 +142,61 @@ impl App for Application {
             ui.separator();
 
             ui.heading(format!("{} Latest Metrics", self.sorted_metrics.len()));
+            ui.horizontal_wrapped(|ui| {
+                if ui.button("Clear Hidden").clicked() {
+                    self.hidden_metrics.clear();
+                }
+                ui.label("Hidden:");
+                let mut to_remove = Vec::new();
+                for hidden in &self.hidden_metrics {
+                    if ui
+                        .add(Button::new(hidden).small())
+                        .on_hover_text_at_pointer("Click to to show")
+                        .clicked()
+                    {
+                        to_remove.push(hidden.clone());
+                    };
+                }
+
+                // Remove clicked items
+                for to_remove in to_remove {
+                    self.hidden_metrics.remove(&to_remove);
+                }
+            });
+            ui.horizontal_wrapped(|ui| {
+                if ui.button("Clear Focus").clicked() {
+                    self.focused_metrics.clear();
+                }
+                ui.label("Focused:");
+                for focused in &self.focused_metrics {
+                    ui.label(focused);
+                }
+            });
             latest_metrics(
                 ui,
                 self.current_time,
                 &mut self.focused_metrics,
+                &mut self.hidden_metrics,
                 self.sorted_metrics.iter().filter_map(|(name, history)| {
                     history.back().map(|newest| (name, newest, history.len()))
                 }),
             );
 
             ui.separator();
-            if self.focused_metrics.is_empty() {
+            if self
+                .focused_metrics
+                .iter()
+                .all(|metric_name| self.sorted_metrics.get(metric_name).is_none())
+            {
                 ui.heading(format!("{} Historical Metrics", self.raw_metrics.len()));
 
                 metrics_history(ui, &self.raw_metrics)
             } else {
                 ui.horizontal_wrapped(|ui| {
-                    ui.checkbox(&mut self.connect_the_dots, "Connect The Dots?");
-                    if ui.button("Clear Focus").clicked() {
-                        self.focused_metrics.clear();
-                    }
-                    ui.label("Focused: ");
-                    for focused in &self.focused_metrics {
-                        ui.label(focused);
-                    }
+                    ui.checkbox(&mut self.connect_the_dots, "Connect The Dots?")
+                        .on_hover_text_at_pointer(
+                            "Should lines be drawn between points on the plot",
+                        );
                 });
                 ui.collapsing("Plot Instructions", |ui| {
                     ui.label("Pan by dragging, or scroll (+ shift = horizontal).");

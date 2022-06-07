@@ -1,15 +1,17 @@
 use std::fmt::Debug;
 
-use self::{name::MetricName, value::MetricValue, timestamp::Timestamp};
+use self::{name::MetricName, timestamp::Timestamp, value::MetricValue};
 
 pub mod name;
-pub mod value;
 pub mod timestamp;
+pub mod value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
+#[non_exhaustive]
 pub enum RobotCommand {
-    StartInfraredInitialization = 0x18
+    StoreInfraredAmbient = 0x00,
+    StoreInfraredReference = 0x01,
 }
 
 #[derive(Debug)]

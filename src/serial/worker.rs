@@ -19,8 +19,8 @@ mod error;
 pub use controller::SerialWorkerController;
 
 use crate::serial::metric::{
-    value::{MetricValue, MetricValueError},
     timestamp::Timestamp,
+    value::{MetricValue, MetricValueError},
     Metric,
 };
 
@@ -101,7 +101,18 @@ impl SerialWorker {
                             "serial worker commanded to reset when not connected to an arduino"
                         ),
                     },
-                    SerialWorkerCommand::SendCommand(command) => {}
+                    SerialWorkerCommand::SendCommand(command) => {
+                        match &mut opt_reader {
+                            Some(reader) => {
+                                let serial = reader.get_mut();
+                                serial.write_all(&[command as u8]).unwrap();
+                                serial.flush().unwrap();
+                            }
+                            None => warn!(
+                                "serial worker commanded to send command when not connected to an arduino"
+                            ),
+                        }
+                    }
                 }
             }
 

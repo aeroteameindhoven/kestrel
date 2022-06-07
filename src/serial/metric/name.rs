@@ -6,6 +6,7 @@ use std::{
 
 use eframe::{
     egui::{RichText, TextFormat, WidgetText},
+    emath::Align,
     epaint::{text::LayoutJob, Color32},
 };
 
@@ -61,15 +62,24 @@ impl From<&MetricName> for WidgetText {
                     0.0,
                     TextFormat {
                         color: Color32::KHAKI,
+                        valign: Align::Center,
                         ..Default::default()
                     },
                 );
-                job.append(":", 0.0, Default::default());
+                job.append(
+                    ":",
+                    0.0,
+                    TextFormat {
+                        valign: Align::Center,
+                        ..Default::default()
+                    },
+                );
                 job.append(
                     name,
                     0.0,
                     TextFormat {
                         color: Color32::GOLD,
+                        valign: Align::Center,
                         ..Default::default()
                     },
                 );

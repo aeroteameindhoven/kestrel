@@ -72,6 +72,7 @@ fn main() -> color_eyre::Result<()> {
                 current_time: Timestamp::default(),
 
                 focused_metrics: BTreeSet::new(),
+                hidden_metrics: BTreeSet::new(),
 
                 serial: SerialWorkerController::spawn(
                     port,

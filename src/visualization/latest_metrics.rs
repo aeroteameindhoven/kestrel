@@ -14,6 +14,7 @@ pub fn latest_metrics<'ui, 'metric>(
     ui: &'ui mut Ui,
     current_time: Timestamp,
     focused_metrics: &mut BTreeSet<MetricName>,
+    hidden_metrics: &mut BTreeSet<MetricName>,
     latest_metrics: impl Iterator<
         Item = (
             &'metric MetricName,
@@ -23,6 +24,7 @@ pub fn latest_metrics<'ui, 'metric>(
     >,
 ) {
     TableBuilder::new(ui)
+        .column(Size::exact(MONOSPACE_CHAR_WIDTH * 7.0))
         .column(Size::exact(TIMESTAMP_WIDTH))
         .column(Size::exact(MONOSPACE_CHAR_WIDTH * 5.0))
         .column(Size::exact(METRIC_NAME_WIDTH))
@@ -35,6 +37,7 @@ pub fn latest_metrics<'ui, 'metric>(
                 .with_cross_align(eframe::emath::Align::Center),
         )
         .header(20.0, |mut header| {
+            header.col(|_ui| {});
             header.col(|ui| {
                 ui.heading("TSLM")
                     .on_hover_text_at_pointer("Time Since Latest Metric");
@@ -54,6 +57,10 @@ pub fn latest_metrics<'ui, 'metric>(
         })
         .body(|mut body| {
             for (metric_name, (timestamp, metric_value), count) in latest_metrics {
+                if hidden_metrics.contains(metric_name) {
+                    continue;
+                }
+
                 let is_focusable = metric_value.is_float()
                     || metric_value.is_signed_integer()
                     || metric_value.is_unsigned_integer()
@@ -61,34 +68,42 @@ pub fn latest_metrics<'ui, 'metric>(
 
                 body.row(20.0, |mut row| {
                     row.col(|ui| {
+                        ui.horizontal_centered(|ui| {
+                            if ui
+                                .button(RichText::new("🗙").monospace().color(Color32::DARK_RED))
+                                .on_hover_text_at_pointer("Hide this metric")
+                                .clicked()
+                            {
+                                hidden_metrics.insert(metric_name.clone());
+                            };
+
+                            if is_focusable {
+                                let is_focused = focused_metrics.contains(metric_name);
+
+                                if ui
+                                    .selectable_label(is_focused, RichText::new("🔎").monospace())
+                                    .on_hover_text_at_pointer("Focus this metric")
+                                    .clicked()
+                                {
+                                    if is_focused {
+                                        focused_metrics.remove(metric_name);
+                                    } else {
+                                        focused_metrics.insert(metric_name.clone());
+                                    }
+                                }
+                            }
+                        });
+                    });
+                    row.col(|ui| {
                         ui.monospace((current_time - *timestamp).to_string());
                     });
                     row.col(|ui| {
                         ui.monospace(count.to_string());
                     });
                     row.col(|ui| {
-                        if is_focusable {
-                            let is_focused = focused_metrics.contains(metric_name);
-
-                            let label = ui
-                                .selectable_label(is_focused, metric_name)
-                                .on_hover_ui_at_pointer(|ui| {
-                                    ui.label(metric_name);
-                                });
-                            if label.clicked() {
-                                if is_focused {
-                                    focused_metrics.remove(metric_name);
-                                } else {
-                                    focused_metrics.insert(metric_name.clone());
-                                }
-                            }
-                        } else {
-                            let _ = ui
-                                .selectable_label(false, metric_name)
-                                .on_hover_ui_at_pointer(|ui| {
-                                    ui.label(metric_name);
-                                });
-                        }
+                        ui.label(metric_name).on_hover_ui_at_pointer(|ui| {
+                            ui.label(metric_name);
+                        });
                     });
                     row.col(|ui| {
                         let text =

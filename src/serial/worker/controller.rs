@@ -6,7 +6,7 @@ use std::{
     thread::{self},
 };
 
-use crate::serial::metric::Metric;
+use crate::serial::metric::{Metric, RobotCommand};
 
 use super::{detacher, SerialWorker, SerialWorkerCommand, SerialWorkerState};
 
@@ -86,6 +86,10 @@ impl SerialWorkerController {
 
     pub fn reset(&self) {
         self.command_tx.send(SerialWorkerCommand::Reset).unwrap();
+    }
+
+    pub fn send_command(&self, command: RobotCommand) {
+        self.command_tx.send(SerialWorkerCommand::SendCommand(command)).unwrap();
     }
 
     pub fn port_name(&self) -> &str {

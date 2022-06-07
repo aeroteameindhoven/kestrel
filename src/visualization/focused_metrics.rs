@@ -5,15 +5,13 @@ use std::{
 
 use eframe::{
     egui::{
-        plot::{uniform_grid_spacer, Legend, Line, Plot, Points, Value, Values},
+        plot::{uniform_grid_spacer, Corner, Legend, Line, Plot, Points, Value, Values},
         Ui,
     },
     epaint::{color::Hsva, Color32},
 };
 
-use crate::serial::metric::{
-    name::MetricName, value::MetricValue, timestamp::Timestamp,
-};
+use crate::serial::metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};
 
 fn label_formatter(name: &str, value: &Value) -> String {
     format!("{name}\n{}\n@ {}", value.y, x_value_formatter(value.x))
@@ -55,11 +53,10 @@ pub fn focused_metrics_plot<'ui, 'iter>(
     Plot::new("focused_metrics")
         .include_y(0.0)
         .include_y(1.0)
-        .include_x(0.0)
         .x_axis_formatter(|x, _range| x_value_formatter(x))
         .x_grid_spacer(uniform_grid_spacer(|_| [60.0 * 1000.0, 1000.0, 100.0]))
         .label_formatter(label_formatter)
-        .legend(Legend::default())
+        .legend(Legend::default().position(Corner::LeftTop))
         .show(ui, |ui| {
             for (metric_name, metric_values) in focused_metrics {
                 let values = metric_values
