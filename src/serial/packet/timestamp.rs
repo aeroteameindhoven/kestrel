@@ -9,25 +9,28 @@ pub struct Timestamp {
 }
 
 impl Timestamp {
-    pub fn from_millis(millis: u32) -> Self {
+    pub const MAX: Self = Self::from_millis(u32::MAX);
+    pub const MIN: Self = Self::from_millis(u32::MIN);
+
+    pub const fn from_millis(millis: u32) -> Self {
         Self { timestamp: millis }
     }
 }
 
 impl Timestamp {
-    pub fn timestamp(&self) -> u32 {
+    pub const fn timestamp(&self) -> u32 {
         self.timestamp
     }
 
-    pub fn millis(&self) -> u32 {
+    pub const fn millis(&self) -> u32 {
         self.timestamp % 1_000
     }
 
-    pub fn seconds(&self) -> u32 {
+    pub const fn seconds(&self) -> u32 {
         (self.timestamp / 1_000) % 60
     }
 
-    pub fn minutes(&self) -> u32 {
+    pub const fn minutes(&self) -> u32 {
         self.timestamp / 60_000
     }
 }

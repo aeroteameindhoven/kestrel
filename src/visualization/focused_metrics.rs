@@ -16,10 +16,14 @@ use crate::serial::packet::{
 };
 
 fn label_formatter(name: &str, value: &Value) -> String {
+    format!("{name}\n{}\n@ {}", value.y, x_value_formatter(value.x))
+}
+
+fn x_value_formatter(x: f64) -> String {
     format!(
-        "{name}\n{}\n@ {}",
-        value.y,
-        Timestamp::from_millis(value.x as u32)
+        "{}{}",
+        if x.is_sign_negative() { "-" } else { "" },
+        Timestamp::from_millis(x.abs() as u32)
     )
 }
 
@@ -48,9 +52,10 @@ pub fn focused_metrics_plot<'ui, 'iter>(
         > + 'iter,
     connect_the_dots: bool,
 ) {
-    Plot::new("Focused Metrics")
+    Plot::new("focused_metrics")
         .include_y(0.0)
-        .x_axis_formatter(|x, _range| Timestamp::from_millis(x as u32).to_string())
+        .include_y(1.0)
+        .x_axis_formatter(|x, _range| x_value_formatter(x))
         .x_grid_spacer(uniform_grid_spacer(|_| [60.0 * 1000.0, 1000.0, 100.0]))
         .label_formatter(label_formatter)
         .legend(Legend::default())
