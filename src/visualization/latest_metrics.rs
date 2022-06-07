@@ -22,9 +22,11 @@ pub fn latest_metrics<'ui, 'metric>(
             usize,
         ),
     >,
-) {
+) -> Vec<MetricName> {
+    let mut to_clear = Vec::new();
+
     TableBuilder::new(ui)
-        .column(Size::exact(MONOSPACE_CHAR_WIDTH * 7.0))
+        .column(Size::exact(MONOSPACE_CHAR_WIDTH * 11.0))
         .column(Size::exact(TIMESTAMP_WIDTH))
         .column(Size::exact(MONOSPACE_CHAR_WIDTH * 5.0))
         .column(Size::exact(METRIC_NAME_WIDTH))
@@ -71,6 +73,14 @@ pub fn latest_metrics<'ui, 'metric>(
                         ui.horizontal_centered(|ui| {
                             if ui
                                 .button(RichText::new("🗙").monospace().color(Color32::DARK_RED))
+                                .on_hover_text_at_pointer("Clear this metric")
+                                .clicked()
+                            {
+                                to_clear.push(metric_name.clone());
+                            };
+
+                            if ui
+                                .button(RichText::new("👁").monospace())
                                 .on_hover_text_at_pointer("Hide this metric")
                                 .clicked()
                             {
@@ -128,4 +138,6 @@ pub fn latest_metrics<'ui, 'metric>(
                 });
             }
         });
+
+    to_clear
 }

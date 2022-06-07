@@ -115,12 +115,13 @@ impl App for Application {
         TopBottomPanel::top("commands").show(ctx, |ui| {
             ui.heading("Robot Commands");
             ui.horizontal_wrapped(|ui| {
-                if ui.button("Store Ambient Infrared Measurements").clicked() {
-                    self.serial.send_command(RobotCommand::StoreInfraredAmbient);
+                ui.label("Infrared");
+                if ui.button("Calibrate Ambient Measurements").clicked() {
+                    self.serial.send_command(RobotCommand::CalibrateAmbientInfrared);
                 }
-                if ui.button("Store Reference Infrared Measurements").clicked() {
+                if ui.button("Calibrate Reference Measurements").clicked() {
                     self.serial
-                        .send_command(RobotCommand::StoreInfraredReference);
+                        .send_command(RobotCommand::CalibrateReferenceInfrared);
                 }
             });
         });
@@ -172,7 +173,7 @@ impl App for Application {
                     ui.label(focused);
                 }
             });
-            latest_metrics(
+            let to_clear = latest_metrics(
                 ui,
                 self.current_time,
                 &mut self.focused_metrics,
@@ -181,6 +182,9 @@ impl App for Application {
                     history.back().map(|newest| (name, newest, history.len()))
                 }),
             );
+            for to_clear in to_clear {
+                self.sorted_metrics.remove(&to_clear);
+            }
 
             ui.separator();
             if self

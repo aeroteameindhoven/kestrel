@@ -10,8 +10,8 @@ pub mod value;
 #[repr(u8)]
 #[non_exhaustive]
 pub enum RobotCommand {
-    StoreInfraredAmbient = 0x00,
-    StoreInfraredReference = 0x01,
+    CalibrateAmbientInfrared = 0x00,
+    CalibrateReferenceInfrared = 0x01,
 }
 
 #[derive(Debug)]
