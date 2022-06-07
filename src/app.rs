@@ -8,21 +8,19 @@ use eframe::{
 use ringbuffer::{AllocRingBuffer, RingBuffer, RingBufferExt, RingBufferWrite};
 
 use crate::{
-    new_packet_ring_buffer,
+    new_metric_ring_buffer,
     serial::{
-        packet::{
-            metric_name::MetricName, metric_value::MetricValue, timestamp::Timestamp, Packet,
-        },
-        worker::SerialWorkerController,
+        metric::{name::MetricName, timestamp::Timestamp, value::MetricValue, Metric},
+        worker::{SerialWorkerController, SerialWorkerState},
     },
     visualization::{
         focused_metrics::focused_metrics_plot, latest_metrics::latest_metrics,
-        packets_table::packets_table, robot::robot,
+        metrics_history::metrics_history, robot::robot,
     },
 };
 
 pub struct Application {
-    pub pause_packets: bool,
+    pub pause_metrics: bool,
     pub show_visualization: bool,
     pub connect_the_dots: bool,
 
@@ -30,33 +28,31 @@ pub struct Application {
 
     pub current_time: Timestamp,
 
-    pub packets: AllocRingBuffer<Packet>,
-    pub metrics_history: BTreeMap<MetricName, AllocRingBuffer<(Timestamp, MetricValue)>>,
+    pub raw_metrics: AllocRingBuffer<Metric>,
+    pub sorted_metrics: BTreeMap<MetricName, AllocRingBuffer<(Timestamp, MetricValue)>>,
 
     pub focused_metrics: BTreeSet<MetricName>,
 }
 
 impl App for Application {
     fn update(&mut self, ctx: &Context, _frame: &mut eframe::Frame) {
-        if !self.pause_packets {
-            for new_packet in self.serial.new_packets() {
-                if let Packet::Telemetry(metric) = &new_packet {
-                    // Clear data if the arduino has rebooted
-                    if metric.timestamp < self.current_time {
-                        self.packets.clear();
-                        self.metrics_history.clear();
-                    }
-
-                    // FIXME: TODO: tick clock when receiving no packets
-                    self.current_time = metric.timestamp;
-
-                    self.metrics_history
-                        .entry(metric.name.clone())
-                        .or_insert_with(new_packet_ring_buffer)
-                        .push((metric.timestamp, metric.value.clone()));
+        if !self.pause_metrics {
+            for metric in self.serial.new_metrics() {
+                // Clear data if the arduino has rebooted
+                if metric.timestamp < self.current_time {
+                    self.raw_metrics.clear();
+                    self.sorted_metrics.clear();
                 }
 
-                self.packets.push(new_packet);
+                // FIXME: TODO: tick clock when receiving no metrics
+                self.current_time = metric.timestamp;
+
+                self.sorted_metrics
+                    .entry(metric.name.clone())
+                    .or_insert_with(new_metric_ring_buffer)
+                    .push((metric.timestamp, metric.value.clone()));
+
+                self.raw_metrics.push(metric);
             }
         }
 
@@ -66,28 +62,46 @@ impl App for Application {
 
                 ui.separator();
 
-                if self.serial.detached() {
-                    if ui.button("Attach").clicked() {
-                        self.serial.attach();
+                match self.serial.state() {
+                    SerialWorkerState::Detached => {
+                        if ui.button("Watch Serial").clicked() {
+                            self.serial.attach();
+                        }
+
+                        ui.label(RichText::new("Ignoring Serial").color(Color32::RED));
                     }
+                    SerialWorkerState::Connected => {
+                        if ui.button("Disconnect").clicked() {
+                            self.serial.detach();
+                        }
 
-                    ui.label(RichText::new("Detached").color(Color32::RED));
-                } else {
-                    if ui.button("Detach").clicked() {
-                        self.serial.detach();
-                    }
-
-                    ui.label(RichText::new("Attached").color(Color32::LIGHT_BLUE));
-
-                    ui.separator();
-
-                    if self.serial.connected() {
                         ui.label(RichText::new("Connected").color(Color32::GREEN));
-                    } else {
+
+                        ui.separator();
+
+                        ui.add_enabled_ui(
+                            self.serial.state() == SerialWorkerState::Connected,
+                            |ui| {
+                                if ui.button("Reset Arduino").clicked() {
+                                    self.serial.reset();
+                                }
+                            },
+                        );
+                    }
+                    SerialWorkerState::Disconnected => {
+                        if ui.button("Stop Waiting").clicked() {
+                            self.serial.detach();
+                        }
+
                         ui.label(
                             RichText::new("Waiting for serial port to become available")
                                 .color(Color32::YELLOW),
                         );
+
+                        ui.spinner();
+                    }
+                    SerialWorkerState::Resetting => {
+                        ui.label(RichText::new("Resetting").color(Color32::LIGHT_BLUE));
 
                         ui.spinner();
                     }
@@ -97,43 +111,35 @@ impl App for Application {
 
         CentralPanel::default().show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
-                if ui.button("Reset Clock").clicked() {
-                    self.current_time = Timestamp::default();
-                }
-                if ui.button("Clear Metrics History").clicked() {
-                    self.metrics_history.clear();
-                }
-                if ui.button("Clear Packets").clicked() {
-                    self.packets.clear();
-                }
-                if ui.button("Clear All").clicked() {
-                    self.current_time = Timestamp::default();
-                    self.metrics_history.clear();
-                    self.packets.clear();
-                }
-                ui.checkbox(&mut self.show_visualization, "Show Visualization");
+                ui.heading(format!("Current time: {}", self.current_time));
 
-                ui.checkbox(&mut self.pause_packets, "Pause packets");
+                if ui.button("Clear Memory").clicked() {
+                    self.current_time = Timestamp::default();
+                    self.sorted_metrics.clear();
+                    self.raw_metrics.clear();
+                }
+
+                ui.toggle_value(&mut self.show_visualization, "Show Visualization");
+                ui.toggle_value(&mut self.pause_metrics, "Pause metric ingest");
             });
 
-            ui.heading(format!("Current time: {}", self.current_time));
             ui.separator();
 
-            ui.heading("Latest Metrics");
+            ui.heading(format!("{} Latest Metrics", self.sorted_metrics.len()));
             latest_metrics(
                 ui,
                 self.current_time,
                 &mut self.focused_metrics,
-                self.metrics_history.iter().filter_map(|(name, history)| {
+                self.sorted_metrics.iter().filter_map(|(name, history)| {
                     history.back().map(|newest| (name, newest, history.len()))
                 }),
             );
 
             ui.separator();
             if self.focused_metrics.is_empty() {
-                ui.heading(format!("{} Packets", self.packets.len()));
+                ui.heading(format!("{} Historical Metrics", self.raw_metrics.len()));
 
-                packets_table(ui, &self.packets)
+                metrics_history(ui, &self.raw_metrics)
             } else {
                 ui.horizontal_wrapped(|ui| {
                     ui.checkbox(&mut self.connect_the_dots, "Connect The Dots?");
@@ -161,7 +167,7 @@ impl App for Application {
                 focused_metrics_plot(
                     ui,
                     self.focused_metrics.iter().filter_map(|metric_name| {
-                        self.metrics_history
+                        self.sorted_metrics
                             .get(metric_name)
                             .map(|metric_values| (metric_name, metric_values.iter()))
                     }),
@@ -175,7 +181,7 @@ impl App for Application {
             .frame(egui::Frame::dark_canvas(&ctx.style()))
             .show(ctx, |ui| {
                 robot(ui, |metric_name| {
-                    self.metrics_history
+                    self.sorted_metrics
                         .get(&metric_name)
                         .and_then(|metrics| metrics.back())
                         .map(|(_timestamp, value)| value)

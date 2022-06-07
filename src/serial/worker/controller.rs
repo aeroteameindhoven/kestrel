@@ -1,24 +1,21 @@
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
-        mpsc::{channel, Receiver},
-        Arc,
+        mpsc::{channel, Receiver, Sender},
+        Arc, RwLock,
     },
-    thread::{self, JoinHandle},
+    thread::{self},
 };
 
-use crate::serial::packet::Packet;
+use crate::serial::metric::Metric;
 
-use super::{detacher, SerialWorker};
+use super::{detacher, SerialWorker, SerialWorkerCommand, SerialWorkerState};
 
 pub struct SerialWorkerController {
     port_name: Arc<str>,
 
-    connected: Arc<AtomicBool>,
-    detach: Arc<AtomicBool>,
-    packet_rx: Receiver<Packet>,
-
-    handle: Arc<JoinHandle<()>>,
+    state: Arc<RwLock<SerialWorkerState>>,
+    command_tx: Sender<SerialWorkerCommand>,
+    metric_rx: Receiver<Metric>,
 }
 
 impl SerialWorkerController {
@@ -27,80 +24,75 @@ impl SerialWorkerController {
         baud_rate: u32,
         repaint: Box<impl Fn() + Send + 'static>,
     ) -> SerialWorkerController {
-        let (packet_tx, packet_rx) = channel();
+        let (metric_tx, metric_rx) = channel();
+        let (command_tx, command_rx) = channel();
 
-        let connected = Arc::new(AtomicBool::new(false));
-        let detach = Arc::new(AtomicBool::new(false));
+        let state = Arc::new(RwLock::new(SerialWorkerState::Disconnected));
 
         let port_name = Arc::from(port_name.into_boxed_str());
 
-        let handle = Arc::new(
-            thread::Builder::new()
-                .name("serial_worker".into())
-                .spawn({
-                    let connected = Arc::clone(&connected);
-                    let detach = Arc::clone(&detach);
-                    let port_name = Arc::clone(&port_name);
+        thread::Builder::new()
+            .name("serial_worker".into())
+            .spawn({
+                let state = Arc::clone(&state);
+                let port_name = Arc::clone(&port_name);
 
-                    move || {
-                        SerialWorker {
-                            port_name,
-                            baud_rate,
-                            packet_tx,
-                            connected,
-                            repaint,
+                move || {
+                    SerialWorker {
+                        port_name,
+                        baud_rate,
 
-                            detach,
-                        }
-                        .spawn()
+                        metric_tx,
+                        command_rx,
+
+                        state,
+
+                        repaint,
                     }
-                })
-                .expect("failed to spawn serial worker thread"),
-        );
+                    .spawn()
+                }
+            })
+            .expect("failed to spawn serial worker thread");
 
         thread::Builder::new()
             .name("serial_detacher".into())
             .spawn({
-                let handle = Arc::clone(&handle);
-                let detach = Arc::clone(&detach);
+                let command_tx = command_tx.clone();
 
-                move || detacher::main(detach, handle)
+                move || detacher::main(command_tx)
             })
             .expect("failed to spawn serial detacher thread");
 
         Self {
-            packet_rx,
-            handle,
+            metric_rx,
+            command_tx,
 
             port_name,
-
-            connected,
-            detach,
+            state,
         }
     }
 
-    pub fn connected(&self) -> bool {
-        self.connected.load(Ordering::SeqCst)
-    }
-
-    pub fn detached(&self) -> bool {
-        self.detach.load(Ordering::SeqCst)
+    pub fn state(&self) -> SerialWorkerState {
+        *self.state.read().unwrap()
     }
 
     pub fn detach(&self) {
-        self.detach.store(true, Ordering::SeqCst);
+        self.command_tx.send(SerialWorkerCommand::Detach).unwrap();
     }
 
     pub fn attach(&self) {
-        self.detach.store(false, Ordering::SeqCst);
-        self.handle.thread().unpark();
+        self.command_tx.send(SerialWorkerCommand::Attach).unwrap();
+    }
+
+    pub fn reset(&self) {
+        self.command_tx.send(SerialWorkerCommand::Reset).unwrap();
     }
 
     pub fn port_name(&self) -> &str {
         self.port_name.as_ref()
     }
 
-    pub fn new_packets(&self) -> impl Iterator<Item = Packet> + '_ {
-        self.packet_rx.try_iter()
+    pub fn new_metrics(&self) -> impl Iterator<Item = Metric> + '_ {
+        self.metric_rx.try_iter()
     }
 }

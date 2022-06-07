@@ -6,11 +6,9 @@ use eframe::{
 };
 use egui_extras::{Size, TableBuilder};
 
-use crate::serial::packet::{
-    metric_name::MetricName, metric_value::MetricValue, timestamp::Timestamp,
-};
+use crate::serial::metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};
 
-use super::sizes::{TIMESTAMP_WIDTH, MONOSPACE_CHAR_WIDTH, METRIC_NAME_WIDTH, METRIC_TYPE_WIDTH};
+use super::sizes::{METRIC_NAME_WIDTH, METRIC_TYPE_WIDTH, MONOSPACE_CHAR_WIDTH, TIMESTAMP_WIDTH};
 
 pub fn latest_metrics<'ui, 'metric>(
     ui: &'ui mut Ui,
@@ -38,11 +36,11 @@ pub fn latest_metrics<'ui, 'metric>(
         )
         .header(20.0, |mut header| {
             header.col(|ui| {
-                ui.heading("TSLP")
-                    .on_hover_text_at_pointer("Time Since Last Packet");
+                ui.heading("TSLM")
+                    .on_hover_text_at_pointer("Time Since Latest Metric");
             });
             header.col(|ui| {
-                ui.heading("Nr.");
+                ui.heading("Cnt").on_hover_text_at_pointer("Metric Count");
             });
             header.col(|ui| {
                 ui.heading("Name");

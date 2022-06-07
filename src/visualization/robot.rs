@@ -4,7 +4,7 @@ use eframe::{
     epaint::{Color32, FontId, Shape, Stroke},
 };
 
-use crate::serial::packet::{metric_name::MetricName, metric_value::MetricValue};
+use crate::serial::metric::{name::MetricName, value::MetricValue};
 
 pub fn robot<'ui, 'metric>(
     ui: &'ui mut Ui,

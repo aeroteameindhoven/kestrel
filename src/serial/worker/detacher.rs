@@ -1,16 +1,10 @@
-use std::{
-    io::Read,
-    net::TcpListener,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    thread::JoinHandle,
-};
+use std::{io::Read, net::TcpListener, sync::mpsc::Sender};
 
 use tracing::{error, warn};
 
-pub fn main(detach: Arc<AtomicBool>, handle: Arc<JoinHandle<()>>) {
+use super::SerialWorkerCommand;
+
+pub(super) fn main(command_tx: Sender<SerialWorkerCommand>) {
     let listener = TcpListener::bind("127.0.0.1:6969").expect("failed to bind tcp listener");
 
     let buf = &mut [0u8; 6];
@@ -20,11 +14,10 @@ pub fn main(detach: Arc<AtomicBool>, handle: Arc<JoinHandle<()>>) {
             Ok(mut stream) => match stream.read_exact(buf) {
                 Ok(()) => match &buf[..] {
                     b"attach" => {
-                        detach.store(false, Ordering::SeqCst);
-                        handle.thread().unpark();
+                        command_tx.send(SerialWorkerCommand::Attach).unwrap();
                     }
                     b"detach" => {
-                        detach.store(true, Ordering::SeqCst);
+                        command_tx.send(SerialWorkerCommand::Detach).unwrap();
                     }
                     _ => {
                         warn!("received non-recognized data over tcp connection");

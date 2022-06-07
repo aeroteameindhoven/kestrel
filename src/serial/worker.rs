@@ -2,9 +2,8 @@ use std::{
     io::{BufRead, BufReader},
     mem::size_of,
     sync::{
-        atomic::{AtomicBool, Ordering},
-        mpsc::Sender,
-        Arc,
+        mpsc::{Receiver, Sender},
+        Arc, RwLock,
     },
     thread,
     time::Duration,
@@ -19,22 +18,39 @@ mod error;
 
 pub use controller::SerialWorkerController;
 
-use crate::serial::packet::{
-    metric_value::{MetricValue, MetricValueError},
+use crate::serial::metric::{
+    value::{MetricValue, MetricValueError},
     timestamp::Timestamp,
-    Metric, Packet, SystemPacket,
+    Metric,
 };
 
 use self::error::{PacketReadError, TransportError};
 
+use super::metric::RobotCommand;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SerialWorkerCommand {
+    Detach,
+    Attach,
+    Reset,
+    SendCommand(RobotCommand),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SerialWorkerState {
+    Resetting,
+    Connected,
+    Disconnected,
+    Detached,
+}
+
 struct SerialWorker {
     port_name: Arc<str>,
     baud_rate: u32,
-    packet_tx: Sender<Packet>,
-    connected: Arc<AtomicBool>,
+    metric_tx: Sender<Metric>,
+    command_rx: Receiver<SerialWorkerCommand>,
+    state: Arc<RwLock<SerialWorkerState>>,
     repaint: Box<dyn Fn()>,
-
-    detach: Arc<AtomicBool>,
 }
 
 impl SerialWorker {
@@ -43,20 +59,50 @@ impl SerialWorker {
         let mut packet_buffer = Vec::new();
 
         loop {
-            if self.detach.load(Ordering::SeqCst) {
-                if opt_reader.is_some() {
-                    self.send_packet(Packet::System(SystemPacket::SerialDisconnect));
+            for command in self.command_rx.try_iter() {
+                match command {
+                    SerialWorkerCommand::Detach => {
+                        opt_reader.take();
+
+                        info!("serial worker detached");
+                        *self.state.write().unwrap() = SerialWorkerState::Detached;
+                        self.repaint();
+
+                        loop {
+                            let command = self.command_rx.recv().unwrap();
+
+                            // Wait for an attach command
+                            match command {
+                                SerialWorkerCommand::Attach => break,
+                                _ => info!(?command, "ignoring command while detached"),
+                            }
+                        }
+
+                        info!("serial worker attached");
+                        *self.state.write().unwrap() = SerialWorkerState::Disconnected;
+                        self.repaint();
+                    }
+                    SerialWorkerCommand::Attach => {
+                        warn!("serial worker commanded to attach when already attached");
+                    }
+                    SerialWorkerCommand::Reset => match &mut opt_reader {
+                        Some(reader) => {
+                            let serial = reader.get_mut();
+
+                            *self.state.write().unwrap() = SerialWorkerState::Resetting;
+
+                            serial.write_data_terminal_ready(true).unwrap();
+                            thread::sleep(Duration::from_millis(1000));
+                            serial.write_data_terminal_ready(false).unwrap();
+
+                            *self.state.write().unwrap() = SerialWorkerState::Connected;
+                        }
+                        None => warn!(
+                            "serial worker commanded to reset when not connected to an arduino"
+                        ),
+                    },
+                    SerialWorkerCommand::SendCommand(command) => {}
                 }
-
-                opt_reader = None;
-
-                // TODO: lots of repeat calls to keep state up to date, do something about that?
-                self.connected.store(false, Ordering::SeqCst);
-                self.repaint();
-
-                thread::park();
-
-                continue;
             }
 
             match &mut opt_reader {
@@ -67,8 +113,7 @@ impl SerialWorker {
 
                         opt_reader = None;
 
-                        self.connected.store(false, Ordering::SeqCst);
-                        self.send_packet(Packet::System(SystemPacket::SerialDisconnect));
+                        *self.state.write().unwrap() = SerialWorkerState::Disconnected;
                         self.repaint();
                     }
                     Err(PacketReadError::Transport(TransportError::MalformedCOBS(data))) => {
@@ -91,7 +136,7 @@ impl SerialWorker {
                         warn!(?packet, %section, "Received packet with a bad layout");
                     }
                     Ok(metric) => {
-                        self.send_packet(Packet::Telemetry(metric));
+                        self.metric_tx.send(metric).expect("ui thread has exited");
                         self.repaint();
                     }
                 },
@@ -101,8 +146,7 @@ impl SerialWorker {
 
                         opt_reader = Some(reader);
 
-                        self.connected.store(true, Ordering::SeqCst);
-                        self.send_packet(Packet::System(SystemPacket::SerialConnect));
+                        *self.state.write().unwrap() = SerialWorkerState::Connected;
                         self.repaint();
                     }
                     None => {
@@ -113,10 +157,6 @@ impl SerialWorker {
                 },
             }
         }
-    }
-
-    fn send_packet(&self, packet: Packet) {
-        self.packet_tx.send(packet).expect("ui thread has exited");
     }
 
     fn repaint(&self) {

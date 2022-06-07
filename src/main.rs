@@ -4,7 +4,7 @@ use app::Application;
 use argh::FromArgs;
 use eframe::NativeOptions;
 use ringbuffer::AllocRingBuffer;
-use serial::{worker::SerialWorkerController, packet::timestamp::Timestamp};
+use serial::{metric::timestamp::Timestamp, worker::SerialWorkerController};
 use tracing_subscriber::filter::LevelFilter;
 
 mod app;
@@ -62,12 +62,12 @@ fn main() -> color_eyre::Result<()> {
         },
         Box::new(move |ctx| {
             Box::new(Application {
-                pause_packets: false,
+                pause_metrics: false,
                 show_visualization: false,
                 connect_the_dots: true,
 
-                packets: new_packet_ring_buffer(),
-                metrics_history: BTreeMap::new(),
+                raw_metrics: new_metric_ring_buffer(),
+                sorted_metrics: BTreeMap::new(),
 
                 current_time: Timestamp::default(),
 
@@ -87,6 +87,6 @@ fn main() -> color_eyre::Result<()> {
     )
 }
 
-pub fn new_packet_ring_buffer<T>() -> AllocRingBuffer<T> {
+pub fn new_metric_ring_buffer<T>() -> AllocRingBuffer<T> {
     AllocRingBuffer::with_capacity(8192)
 }
