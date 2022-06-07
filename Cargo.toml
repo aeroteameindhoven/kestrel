@@ -3,6 +3,12 @@ name = "dbl-venus-visualization"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+lto = "fat"
+overflow-checks = true
+codegen-units = 1
+debug = 1
+
 [dependencies]
 argh = "0.1.7"
 color-eyre = "0.6.1"
