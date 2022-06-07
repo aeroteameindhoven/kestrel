@@ -2,7 +2,7 @@ use std::io;
 
 use tracing::error;
 
-use crate::serial::packet::MetricValueError;
+use crate::serial::packet::metric_value::MetricValueError;
 
 #[derive(Debug)]
 pub enum TransportError {

@@ -19,11 +19,13 @@ mod error;
 
 pub use controller::SerialWorkerController;
 
-use crate::serial::packet::{MetricValue, SystemPacket};
+use crate::serial::packet::{
+    metric_value::{MetricValue, MetricValueError},
+    timestamp::Timestamp,
+    Metric, Packet, SystemPacket,
+};
 
 use self::error::{PacketReadError, TransportError};
-
-use super::packet::{Metric, MetricValueError, Packet};
 
 struct SerialWorker {
     port_name: Arc<str>,
@@ -196,7 +198,7 @@ impl SerialWorker {
         let metric_value = MetricValue::from_bytes(metric_type, metric)?;
 
         Ok(Metric {
-            timestamp,
+            timestamp: Timestamp::from_millis(timestamp),
             name: metric_name
                 .parse()
                 .expect("metric name parsing must never fail"),

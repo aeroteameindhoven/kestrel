@@ -4,11 +4,12 @@ use app::Application;
 use argh::FromArgs;
 use eframe::NativeOptions;
 use ringbuffer::AllocRingBuffer;
-use serial::worker::SerialWorkerController;
+use serial::{worker::SerialWorkerController, packet::timestamp::Timestamp};
 use tracing_subscriber::filter::LevelFilter;
 
 mod app;
 mod serial;
+mod visualization;
 
 /// Visualization tool for the DBL Venus Exploration project
 #[derive(FromArgs, Debug)]
@@ -68,7 +69,7 @@ fn main() -> color_eyre::Result<()> {
                 packets: new_packet_ring_buffer(),
                 metrics_history: BTreeMap::new(),
 
-                current_time: 0,
+                current_time: Timestamp::default(),
 
                 focused_metrics: BTreeSet::new(),
 
