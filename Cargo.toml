@@ -12,6 +12,7 @@ debug = 1
 [dependencies]
 argh = "0.1.7"
 color-eyre = "0.6.1"
+colorous = "1.0.6"
 eframe = { version = "0.18.0", features = ["dark-light"] }
 egui_extras = "0.18.0"
 postcard-cobs = "0.2.0"

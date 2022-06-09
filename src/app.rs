@@ -117,7 +117,8 @@ impl App for Application {
             ui.horizontal_wrapped(|ui| {
                 ui.label("Infrared");
                 if ui.button("Calibrate Ambient Measurements").clicked() {
-                    self.serial.send_command(RobotCommand::CalibrateAmbientInfrared);
+                    self.serial
+                        .send_command(RobotCommand::CalibrateAmbientInfrared);
                 }
                 if ui.button("Calibrate Reference Measurements").clicked() {
                     self.serial
@@ -148,11 +149,12 @@ impl App for Application {
                     self.hidden_metrics.clear();
                 }
                 ui.label("Hidden:");
+
                 let mut to_remove = Vec::new();
                 for hidden in &self.hidden_metrics {
                     if ui
                         .add(Button::new(hidden).small())
-                        .on_hover_text_at_pointer("Click to to show")
+                        .on_hover_text_at_pointer("Click to to unhide")
                         .clicked()
                     {
                         to_remove.push(hidden.clone());
@@ -169,8 +171,21 @@ impl App for Application {
                     self.focused_metrics.clear();
                 }
                 ui.label("Focused:");
+
+                let mut to_remove = Vec::new();
                 for focused in &self.focused_metrics {
-                    ui.label(focused);
+                    if ui
+                        .add(Button::new(focused).small())
+                        .on_hover_text_at_pointer("Click to to unfocus")
+                        .clicked()
+                    {
+                        to_remove.push(focused.clone());
+                    }
+                }
+
+                // Remove clicked items
+                for to_remove in to_remove {
+                    self.focused_metrics.remove(&to_remove);
                 }
             });
             let to_clear = latest_metrics(

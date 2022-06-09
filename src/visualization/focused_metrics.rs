@@ -31,13 +31,11 @@ fn color_from_metric_name(metric_name: &MetricName) -> Color32 {
     metric_name.hash(&mut hasher);
 
     // Get random but deterministic color per line
-    let i = hasher.finish() >> (64 - 4);
+    let index = hasher.finish();
 
-    // Ripped from egui \src\widgets\plot\mod.rs
-    let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
-    let h = i as f32 * golden_ratio;
+    let color = colorous::RAINBOW.eval_rational(index as usize, u64::MAX as usize);
 
-    Hsva::new(h, 0.85, 0.5, 1.0).into()
+    Color32::from_rgb(color.r, color.g, color.b)
 }
 
 pub fn focused_metrics_plot<'ui, 'iter>(

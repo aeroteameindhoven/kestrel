@@ -89,7 +89,9 @@ impl SerialWorkerController {
     }
 
     pub fn send_command(&self, command: RobotCommand) {
-        self.command_tx.send(SerialWorkerCommand::SendCommand(command)).unwrap();
+        self.command_tx
+            .send(SerialWorkerCommand::SendCommand(command))
+            .unwrap();
     }
 
     pub fn port_name(&self) -> &str {
