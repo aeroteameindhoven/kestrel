@@ -5,10 +5,14 @@ use argh::FromArgs;
 use eframe::NativeOptions;
 use ringbuffer::AllocRingBuffer;
 use serial::{metric::timestamp::Timestamp, worker::SerialWorkerController};
+use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
+
+use crate::version::GIT_VERSION;
 
 mod app;
 mod serial;
+mod version;
 mod visualization;
 
 /// Visualization tool for the DBL Venus Exploration project
@@ -34,6 +38,8 @@ fn main() -> color_eyre::Result<()> {
         .compact()
         .with_ansi(cfg!(debug_assertions))
         .init();
+
+    info!(version = GIT_VERSION);
 
     let args: Args = argh::from_env();
 
@@ -64,6 +70,7 @@ fn main() -> color_eyre::Result<()> {
             Box::new(Application {
                 pause_metrics: false,
                 show_visualization: false,
+                show_info: false,
                 connect_the_dots: true,
 
                 raw_metrics: new_metric_ring_buffer(),

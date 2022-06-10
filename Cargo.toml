@@ -1,7 +1,9 @@
 [package]
 name = "dbl-venus-visualization"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
+description = "Visualization tool for the DBL Venus Exploration project "
+repository = "https://github.com/dusterthefirst/dbl-venus-visualization"
 
 [profile.release]
 lto = "fat"
@@ -15,6 +17,7 @@ color-eyre = "0.6.1"
 colorous = "1.0.6"
 eframe = { version = "0.18.0", features = ["dark-light"] }
 egui_extras = "0.18.0"
+git-version = "0.3.5"
 postcard-cobs = "0.2.0"
 ringbuffer = "0.8.4"
 serialport = "4.1.0"

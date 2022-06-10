@@ -8,7 +8,7 @@ use eframe::{
         plot::{uniform_grid_spacer, Corner, Legend, Line, Plot, Points, Value, Values},
         Ui,
     },
-    epaint::{color::Hsva, Color32},
+    epaint::Color32,
 };
 
 use crate::serial::metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};

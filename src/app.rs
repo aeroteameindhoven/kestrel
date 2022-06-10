@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use eframe::{
-    egui::{self, Button, CentralPanel, Context, RichText, TopBottomPanel, Window},
+    egui::{self, Button, CentralPanel, Context, Grid, RichText, TopBottomPanel, Window},
     epaint::Color32,
     App,
 };
@@ -15,6 +15,7 @@ use crate::{
         },
         worker::{SerialWorkerController, SerialWorkerState},
     },
+    version::GIT_VERSION,
     visualization::{
         focused_metrics::focused_metrics_plot, latest_metrics::latest_metrics,
         metrics_history::metrics_history, robot::robot,
@@ -24,6 +25,7 @@ use crate::{
 pub struct Application {
     pub pause_metrics: bool,
     pub show_visualization: bool,
+    pub show_info: bool,
     pub connect_the_dots: bool,
 
     pub serial: SerialWorkerController,
@@ -61,6 +63,10 @@ impl App for Application {
 
         TopBottomPanel::top("serial_info").show(ctx, |ui| {
             ui.horizontal(|ui| {
+                ui.toggle_value(&mut self.show_info, "ℹ");
+
+                ui.separator();
+
                 ui.label(format!("Serial port {}", self.serial.port_name()));
 
                 ui.separator();
@@ -252,6 +258,41 @@ impl App for Application {
                         .and_then(|metrics| metrics.back())
                         .map(|(_timestamp, value)| value)
                 });
+            });
+
+        Window::new("Information")
+            .open(&mut self.show_info)
+            .resizable(false)
+            .default_width(280.0)
+            .show(ctx, |ui| {
+                ui.heading(env!("CARGO_PKG_NAME"));
+                ui.label(env!("CARGO_PKG_DESCRIPTION"));
+
+                ui.separator();
+
+                Grid::new("version_information")
+                    .striped(true)
+                    .num_columns(2)
+                    .show(ui, |ui| {
+                        ui.label("cargo-version:");
+                        ui.label(env!("CARGO_PKG_VERSION"));
+                        ui.end_row();
+
+                        ui.label("git-version:");
+                        if GIT_VERSION.ends_with("-modified") {
+                            ui.label(GIT_VERSION);
+                        } else {
+                            ui.hyperlink_to(
+                                GIT_VERSION,
+                                format!("{}/commit/{GIT_VERSION}", env!("CARGO_PKG_REPOSITORY")),
+                            );
+                        }
+                        ui.end_row();
+
+                        ui.label("github:");
+                        ui.hyperlink(env!("CARGO_PKG_REPOSITORY")).clicked();
+                        ui.end_row();
+                    });
             });
     }
 }
