@@ -284,7 +284,7 @@ impl App for Application {
                         } else {
                             ui.hyperlink_to(
                                 GIT_VERSION,
-                                format!("{}/commit/{GIT_VERSION}", env!("CARGO_PKG_REPOSITORY")),
+                                format!("{}/tree/{GIT_VERSION}", env!("CARGO_PKG_REPOSITORY")),
                             );
                         }
                         ui.end_row();
