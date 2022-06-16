@@ -73,25 +73,25 @@ pub fn latest_metrics<'ui, 'metric>(
                         ui.horizontal_centered(|ui| {
                             if ui
                                 .button(RichText::new("🗙").monospace().color(Color32::DARK_RED))
-                                .on_hover_text_at_pointer("Clear this metric")
-                                .clicked()
-                            {
-                                to_clear.push(metric_name.clone());
-                            };
-
-                            if ui
-                                .button(RichText::new("👁").monospace())
                                 .on_hover_text_at_pointer("Hide this metric")
                                 .clicked()
                             {
                                 hidden_metrics.insert(metric_name.clone());
                             };
 
+                            if ui
+                                .button(RichText::new("↩").monospace())
+                                .on_hover_text_at_pointer("Reset this metric")
+                                .clicked()
+                            {
+                                to_clear.push(metric_name.clone());
+                            };
+
                             if is_focusable {
                                 let is_focused = focused_metrics.contains(metric_name);
 
                                 if ui
-                                    .selectable_label(is_focused, RichText::new("🔎").monospace())
+                                    .selectable_label(is_focused, RichText::new("🗠").monospace())
                                     .on_hover_text_at_pointer("Focus this metric")
                                     .clicked()
                                 {

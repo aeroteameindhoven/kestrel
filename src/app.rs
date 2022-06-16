@@ -137,7 +137,7 @@ impl App for Application {
             ui.horizontal_wrapped(|ui| {
                 ui.heading(format!("Current time: {}", self.current_time));
 
-                if ui.button("Clear Memory").clicked() {
+                if ui.button("Reset Metrics").clicked() {
                     self.current_time = Timestamp::default();
                     self.sorted_metrics.clear();
                     self.raw_metrics.clear();
@@ -151,7 +151,7 @@ impl App for Application {
 
             ui.heading(format!("{} Latest Metrics", self.sorted_metrics.len()));
             ui.horizontal_wrapped(|ui| {
-                if ui.button("Clear Hidden").clicked() {
+                if ui.button("Reset Hidden").clicked() {
                     self.hidden_metrics.clear();
                 }
                 ui.label("Hidden:");
@@ -173,7 +173,7 @@ impl App for Application {
                 }
             });
             ui.horizontal_wrapped(|ui| {
-                if ui.button("Clear Focus").clicked() {
+                if ui.button("Reset Focused").clicked() {
                     self.focused_metrics.clear();
                 }
                 ui.label("Focused:");

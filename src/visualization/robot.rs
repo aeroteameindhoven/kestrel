@@ -4,7 +4,7 @@ use eframe::{
     epaint::{Color32, FontId, Shape, Stroke},
 };
 
-use crate::serial::metric::{name::MetricName, value::MetricValue};
+use crate::{serial::metric::{name::MetricName, value::MetricValue}, metric_name};
 
 pub fn robot<'ui, 'metric>(
     ui: &'ui mut Ui,
@@ -45,7 +45,7 @@ pub fn robot<'ui, 'metric>(
     };
 
     if let Some(front_points) =
-        get_latest_value(MetricName::namespaced("ultrasonic", "last_readings"))
+        get_latest_value(metric_name!("ultrasonic", "last_readings"))
             .and_then(|distance| distance.as_unsigned_integer_iter())
     {
         ui.painter().extend(
@@ -63,9 +63,9 @@ pub fn robot<'ui, 'metric>(
     }
 
     if let Some((distance, heading)) = Option::zip(
-        get_latest_value(MetricName::namespaced("ultrasonic", "distance"))
+        get_latest_value(metric_name!("ultrasonic", "distance"))
             .and_then(|distance| distance.as_unsigned_integer()),
-        get_latest_value(MetricName::namespaced("ultrasonic", "heading"))
+        get_latest_value(metric_name!("ultrasonic", "heading"))
             .and_then(|heading| heading.as_signed_integer()),
     ) {
         let ultrasonic_heading = get_heading(distance, heading);
@@ -120,7 +120,7 @@ pub fn robot<'ui, 'metric>(
         // TODO: warn if missing telemetry?
     }
 
-    if let Some(speed) = get_latest_value(MetricName::namespaced("motor", "drive_speed"))
+    if let Some(speed) = get_latest_value(metric_name!("motor", "drive_speed"))
         .and_then(|speed| speed.as_float())
     {
         if speed.abs() > f64::EPSILON {
