@@ -96,5 +96,5 @@ fn main() -> color_eyre::Result<()> {
 }
 
 pub fn new_metric_ring_buffer<T>() -> AllocRingBuffer<T> {
-    AllocRingBuffer::with_capacity(8192)
+    AllocRingBuffer::with_capacity(1024)
 }
