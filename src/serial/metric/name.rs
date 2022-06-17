@@ -97,9 +97,12 @@ impl<'n> Iterator for Flatten<'n> {
 
 impl Display for MetricName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let string = self
-            .flatten()
-            .fold(String::new(), |pre, new| pre + ":" + new.as_ref());
+        let mut flatten = self.flatten();
+        let first = flatten
+            .next()
+            .expect("metric name must have at least one component")
+            .to_string();
+        let string = flatten.fold(first, |pre, new| pre + ":" + new.as_ref());
 
         write!(f, "{string}")
     }
