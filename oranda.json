@@ -1,0 +1,14 @@
+{
+    "$schema": "https://github.com/axodotdev/oranda/releases/download/v0.6.2/oranda-config-schema.json",
+    "styles": {
+        "theme": "axodark"
+    },
+    "marketing": {
+        "analytics": {
+            "umami": {
+                "script_url": "https://umami.aeroteameindhoven.nl/script.js",
+                "website": "217a84d8-5182-4252-8cca-6622884babe2"
+            }
+        }
+    }
+}
