@@ -4,7 +4,7 @@ description = "Telemetry visualization and analysis tool for deeply embedded sys
 edition     = "2021"
 name        = "kestrel"
 repository  = "https://github.com/aeroteameindhoven/kestrel"
-version     = "0.0.0"
+version     = "0.1.0"
 
 [package.metadata.wix]
 eula         = false
@@ -47,9 +47,9 @@ cargo-dist-version = "0.13.2"
 # CI backends to support
 ci = ["github"]
 # The installers to generate for each app
-installers = ["shell", "powershell", "msi"]
+installers = ["msi", "powershell", "shell"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
 # Publish jobs to run in CI
 pr-run-mode = "plan"
 # Whether to install an updater program
