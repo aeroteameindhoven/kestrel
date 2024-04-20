@@ -3,6 +3,7 @@ authors     = ["Zachary Kohnen <z.kohnen@aeroteameindhoven.nl>"]
 description = "Telemetry visualization and analysis tool for deeply embedded systems "
 edition     = "2021"
 name        = "kestrel"
+publish     = false
 repository  = "https://github.com/aeroteameindhoven/kestrel"
 version     = "0.1.0"
 
@@ -42,6 +43,7 @@ tracing-subscriber = "0.3.11"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
+dist = true
 # The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
 cargo-dist-version = "0.13.2"
 # CI backends to support
