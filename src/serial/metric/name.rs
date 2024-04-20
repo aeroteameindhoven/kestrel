@@ -11,9 +11,10 @@ use eframe::{
 };
 use once_cell::sync::Lazy;
 use parking_lot::{MappedRwLockReadGuard, RwLock, RwLockReadGuard};
-use string_interner::{symbol::DefaultSymbol, StringInterner};
+use string_interner::{symbol::DefaultSymbol, DefaultStringInterner};
 
-static INTERNER: Lazy<RwLock<StringInterner>> = Lazy::new(|| RwLock::new(StringInterner::new()));
+static INTERNER: Lazy<RwLock<DefaultStringInterner>> =
+    Lazy::new(|| RwLock::new(DefaultStringInterner::new()));
 
 fn resolve(symbol: DefaultSymbol) -> MappedRwLockReadGuard<'static, str> {
     RwLockReadGuard::map(INTERNER.read(), |interner| {

@@ -5,7 +5,7 @@ use eframe::{
     epaint::Color32,
     App,
 };
-use ringbuffer::{AllocRingBuffer, RingBuffer, RingBufferExt, RingBufferWrite};
+use ringbuffer::{AllocRingBuffer, RingBuffer};
 
 use crate::{
     new_metric_ring_buffer,
@@ -211,7 +211,7 @@ impl App for Application {
             if self
                 .focused_metrics
                 .iter()
-                .all(|metric_name| self.sorted_metrics.get(metric_name).is_none())
+                .all(|metric_name| !self.sorted_metrics.contains_key(metric_name))
             {
                 ui.heading(format!("{} Historical Metrics", self.raw_metrics.len()));
 

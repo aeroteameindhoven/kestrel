@@ -1,8 +1,8 @@
 use eframe::{
-    egui::{Layout, RichText, Ui},
+    egui::{Align, Layout, RichText, Ui},
     epaint::Color32,
 };
-use egui_extras::{Size, TableBuilder};
+use egui_extras::{Column, TableBuilder};
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 
 use crate::serial::metric::Metric;
@@ -12,12 +12,12 @@ use super::sizes::{METRIC_NAME_WIDTH, METRIC_TYPE_WIDTH, TIMESTAMP_WIDTH};
 pub fn metrics_history(ui: &mut Ui, metrics: &AllocRingBuffer<Metric>) {
     ui.push_id("metrics_history", |ui| {
         TableBuilder::new(ui)
-            .column(Size::exact(TIMESTAMP_WIDTH))
-            .column(Size::exact(METRIC_NAME_WIDTH))
-            .column(Size::exact(METRIC_TYPE_WIDTH))
-            .column(Size::remainder())
+            .column(Column::exact(TIMESTAMP_WIDTH))
+            .column(Column::exact(METRIC_NAME_WIDTH))
+            .column(Column::exact(METRIC_TYPE_WIDTH))
+            .column(Column::remainder())
             .striped(true)
-            .cell_layout(Layout::left_to_right().with_main_wrap(false))
+            .cell_layout(Layout::left_to_right(Align::Center).with_main_wrap(false))
             .header(20.0, |mut header| {
                 header.col(|ui| {
                     ui.heading("Time")
@@ -34,8 +34,8 @@ pub fn metrics_history(ui: &mut Ui, metrics: &AllocRingBuffer<Metric>) {
                 });
             })
             .body(|body| {
-                body.rows(15.0, metrics.len(), |idx, mut row| {
-                    let metric = &metrics[-(idx as isize + 1)];
+                body.rows(15.0, metrics.len(), |mut row| {
+                    let metric = &metrics.get_signed(-(row.index() as isize + 1)).unwrap();
 
                     row.col(|ui| {
                         ui.monospace(metric.timestamp.to_string());

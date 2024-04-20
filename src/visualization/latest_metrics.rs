@@ -1,10 +1,11 @@
 use std::collections::BTreeSet;
 
 use eframe::{
-    egui::{Layout, RichText, Ui},
+    egui::{self, Layout, RichText, Ui},
+    emath,
     epaint::Color32,
 };
-use egui_extras::{Size, TableBuilder};
+use egui_extras::{Column, TableBuilder};
 
 use crate::serial::metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};
 
@@ -26,17 +27,17 @@ pub fn latest_metrics<'ui, 'metric>(
     let mut to_clear = Vec::new();
 
     TableBuilder::new(ui)
-        .column(Size::exact(MONOSPACE_CHAR_WIDTH * 11.0))
-        .column(Size::exact(TIMESTAMP_WIDTH))
-        .column(Size::exact(MONOSPACE_CHAR_WIDTH * 5.0))
-        .column(Size::exact(METRIC_NAME_WIDTH))
-        .column(Size::exact(METRIC_TYPE_WIDTH))
-        .column(Size::remainder())
+        .column(Column::exact(MONOSPACE_CHAR_WIDTH * 11.0))
+        .column(Column::exact(TIMESTAMP_WIDTH))
+        .column(Column::exact(MONOSPACE_CHAR_WIDTH * 5.0))
+        .column(Column::exact(METRIC_NAME_WIDTH))
+        .column(Column::exact(METRIC_TYPE_WIDTH))
+        .column(Column::remainder())
         .striped(true)
         .cell_layout(
-            Layout::left_to_right()
+            Layout::left_to_right(egui::Align::Center)
                 .with_main_wrap(false)
-                .with_cross_align(eframe::emath::Align::Center),
+                .with_cross_align(emath::Align::Center),
         )
         .header(20.0, |mut header| {
             header.col(|_ui| {});

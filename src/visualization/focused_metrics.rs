@@ -3,25 +3,20 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use eframe::{
-    egui::{
-        plot::{uniform_grid_spacer, Corner, Legend, Line, Plot, Points, Value, Values},
-        Ui,
-    },
-    epaint::Color32,
-};
+use eframe::{egui::Ui, epaint::Color32};
+use egui_plot::{uniform_grid_spacer, Corner, Legend, Line, Plot, PlotPoint, PlotPoints, Points};
 
 use crate::serial::metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};
 
-fn label_formatter(name: &str, value: &Value) -> String {
+fn label_formatter(name: &str, value: &PlotPoint) -> String {
     format!("{name}\n{}\n@ {}", value.y, x_value_formatter(value.x))
 }
 
-fn x_value_formatter(x: f64) -> String {
+fn x_value_formatter(value: f64) -> String {
     format!(
         "{}{}",
-        if x.is_sign_negative() { "-" } else { "" },
-        Timestamp::from_millis(x.abs() as u32)
+        if value.is_sign_negative() { "-" } else { "" },
+        Timestamp::from_millis(value.abs() as u32)
     )
 }
 
@@ -51,7 +46,11 @@ pub fn focused_metrics_plot<'ui, 'iter>(
     Plot::new("focused_metrics")
         .include_y(0.0)
         .include_y(1.0)
-        .x_axis_formatter(|x, _range| x_value_formatter(x))
+        .x_axis_formatter(|grid_mark, chars, _range| {
+            assert!(chars >= 8, "Need to implement shrinkage");
+
+            x_value_formatter(grid_mark.value)
+        })
         .x_grid_spacer(uniform_grid_spacer(|_| [60.0 * 1000.0, 1000.0, 100.0]))
         .label_formatter(label_formatter)
         .legend(Legend::default().position(Corner::LeftTop))
@@ -59,7 +58,7 @@ pub fn focused_metrics_plot<'ui, 'iter>(
             for (metric_name, metric_values) in focused_metrics {
                 let values = metric_values
                     .map(|(timestamp, value)| {
-                        Value::new(
+                        PlotPoint::new(
                             timestamp.timestamp(),
                             value
                                 .as_float()
@@ -77,13 +76,13 @@ pub fn focused_metrics_plot<'ui, 'iter>(
 
                 if connect_the_dots {
                     ui.line(
-                        Line::new(Values::from_values(values.clone()))
+                        Line::new(PlotPoints::Owned(values.clone()))
                             .name(metric_name.to_string())
                             .color(color),
                     );
                 }
                 ui.points(
-                    Points::new(Values::from_values(values))
+                    Points::new(PlotPoints::Owned(values))
                         .radius(2.0)
                         .name(metric_name.to_string())
                         .color(color),

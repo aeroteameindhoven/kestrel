@@ -4,7 +4,10 @@ use eframe::{
     epaint::{Color32, FontId, Shape, Stroke},
 };
 
-use crate::{serial::metric::{name::MetricName, value::MetricValue}, metric_name};
+use crate::{
+    metric_name,
+    serial::metric::{name::MetricName, value::MetricValue},
+};
 
 pub fn robot<'ui, 'metric>(
     ui: &'ui mut Ui,
@@ -26,14 +29,16 @@ pub fn robot<'ui, 'metric>(
     let robot = [
         Shape::rect_filled(robot_rect, 0.0, Color32::WHITE.linear_multiply(0.5)),
         Shape::rect_stroke(robot_rect, 0.0, Stroke::new(2.0, Color32::WHITE)),
-        Shape::text(
-            &ui.fonts(),
-            canvas.center(),
-            Align2::CENTER_CENTER,
-            "Robot",
-            FontId::monospace(26.0),
-            Color32::BLACK,
-        ),
+        ui.fonts(|fonts| {
+            Shape::text(
+                fonts,
+                canvas.center(),
+                Align2::CENTER_CENTER,
+                "Robot",
+                FontId::monospace(26.0),
+                Color32::BLACK,
+            )
+        }),
     ];
 
     ui.painter().extend(robot.to_vec());
@@ -44,22 +49,17 @@ pub fn robot<'ui, 'metric>(
             * Vec2::angled((heading as f32 + 90.0).to_radians())
     };
 
-    if let Some(front_points) =
-        get_latest_value(metric_name!("ultrasonic", "last_readings"))
-            .and_then(|distance| distance.as_unsigned_integer_iter())
+    if let Some(front_points) = get_latest_value(metric_name!("ultrasonic", "last_readings"))
+        .and_then(|distance| distance.as_unsigned_integer_iter())
     {
-        ui.painter().extend(
-            front_points
-                .enumerate()
-                .map(|(heading, distance)| {
-                    Shape::circle_filled(
-                        robot_rect.center_top() - get_heading(distance, heading as i64 - 90),
-                        1.0,
-                        Color32::WHITE,
-                    )
-                })
-                .collect(),
-        );
+        ui.painter()
+            .extend(front_points.enumerate().map(|(heading, distance)| {
+                Shape::circle_filled(
+                    robot_rect.center_top() - get_heading(distance, heading as i64 - 90),
+                    1.0,
+                    Color32::WHITE,
+                )
+            }));
     }
 
     if let Some((distance, heading)) = Option::zip(
@@ -88,40 +88,42 @@ pub fn robot<'ui, 'metric>(
             Stroke::new(2.0, Color32::KHAKI),
         ));
 
-        shapes.push(Shape::text(
-            &ui.fonts(),
-            robot_rect.center_top() - ultrasonic_heading,
-            Align2::CENTER_BOTTOM,
-            format!("{}cm", distance),
-            FontId::monospace(15.0),
-            Color32::KHAKI,
-        ));
-
-        shapes.push(Shape::text(
-            &ui.fonts(),
-            robot_rect.center_top() + 15.0 * Vec2::Y,
-            Align2::CENTER_TOP,
-            format!("heading: {heading}°"),
-            FontId::monospace(15.0),
-            Color32::BLUE,
-        ));
-
-        shapes.push(Shape::text(
-            &ui.fonts(),
-            robot_rect.center_top(),
-            Align2::CENTER_TOP,
-            "Ultrasonic Sensor",
-            FontId::monospace(15.0),
-            Color32::BLACK,
-        ));
+        shapes.extend_from_slice(&ui.fonts(|fonts| {
+            [
+                Shape::text(
+                    fonts,
+                    robot_rect.center_top() - ultrasonic_heading,
+                    Align2::CENTER_BOTTOM,
+                    format!("{}cm", distance),
+                    FontId::monospace(15.0),
+                    Color32::KHAKI,
+                ),
+                Shape::text(
+                    fonts,
+                    robot_rect.center_top() + 15.0 * Vec2::Y,
+                    Align2::CENTER_TOP,
+                    format!("heading: {heading}°"),
+                    FontId::monospace(15.0),
+                    Color32::BLUE,
+                ),
+                Shape::text(
+                    fonts,
+                    robot_rect.center_top(),
+                    Align2::CENTER_TOP,
+                    "Ultrasonic Sensor",
+                    FontId::monospace(15.0),
+                    Color32::BLACK,
+                ),
+            ]
+        }));
 
         ui.painter().extend(shapes);
     } else {
         // TODO: warn if missing telemetry?
     }
 
-    if let Some(speed) = get_latest_value(metric_name!("motor", "drive_speed"))
-        .and_then(|speed| speed.as_float())
+    if let Some(speed) =
+        get_latest_value(metric_name!("motor", "drive_speed")).and_then(|speed| speed.as_float())
     {
         if speed.abs() > f64::EPSILON {
             let (color, align, direction) = if speed.is_sign_positive() {
@@ -136,14 +138,16 @@ pub fn robot<'ui, 'metric>(
 
             let shapes = [
                 Shape::line(vec![arrow_base, arrow_tip], Stroke::new(7.0, color)),
-                Shape::text(
-                    &ui.fonts(),
-                    arrow_tip,
-                    align,
-                    format!("{speed:.3}"),
-                    FontId::monospace(15.0),
-                    color,
-                ),
+                ui.fonts(|fonts| {
+                    Shape::text(
+                        fonts,
+                        arrow_tip,
+                        align,
+                        format!("{speed:.3}"),
+                        FontId::monospace(15.0),
+                        color,
+                    )
+                }),
             ];
 
             ui.painter().extend(shapes.to_vec());

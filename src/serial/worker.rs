@@ -257,9 +257,9 @@ impl SerialWorker {
         })
     }
 
-    fn read_cobs<'read, 'buffer>(
+    fn read_cobs<'buffer>(
         &mut self,
-        reader: &'read mut BufReader<Box<dyn SerialPort>>,
+        reader: &mut BufReader<Box<dyn SerialPort>>,
         buffer: &'buffer mut Vec<u8>,
     ) -> Result<&'buffer [u8], TransportError> {
         buffer.clear();

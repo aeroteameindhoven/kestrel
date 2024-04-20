@@ -92,9 +92,11 @@ fn main() -> color_eyre::Result<()> {
                 ),
             })
         }),
-    )
+    ).unwrap(); // FIXME: not Send or Sync :/ color eyre does no like it
+
+    Ok(())
 }
 
 pub fn new_metric_ring_buffer<T>() -> AllocRingBuffer<T> {
-    AllocRingBuffer::with_capacity(1024)
+    AllocRingBuffer::new(1024)
 }
