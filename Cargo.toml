@@ -51,7 +51,7 @@ authors      = ["Zachary Kohnen <z.kohnen@aeroteameindhoven.nl>"]
 edition      = "2021"
 publish      = false
 repository   = "https://github.com/aeroteameindhoven/kestrel"
-rust-version = "1.78.0"
+rust-version = "1.77.2"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
