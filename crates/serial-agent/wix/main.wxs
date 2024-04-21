@@ -60,8 +60,8 @@
 
     <Product
         Id='*'
-        Name='kestrel'
-        UpgradeCode='BB0323A3-DA8D-48B8-A258-CEF7E19980CC'
+        Name='serial-agent'
+        UpgradeCode='797EBB12-23FB-4326-B189-20C9CE84BD21'
         Manufacturer='Zachary Kohnen'
         Language='1033'
         Codepage='1252'
@@ -69,7 +69,7 @@
 
         <Package Id='*'
             Keywords='Installer'
-            Description='Telemetry visualization and analysis tool for deeply embedded systems'
+            Description='Serial agent for kestrel'
             Manufacturer='Zachary Kohnen'
             InstallerVersion='450'
             Languages='1033'
@@ -83,11 +83,11 @@
             DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.'/>
 
         <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1'/>
-        <Property Id='DiskPrompt' Value='kestrel Installation'/>
+        <Property Id='DiskPrompt' Value='serial-agent Installation'/>
 
         <Directory Id='TARGETDIR' Name='SourceDir'>
             <Directory Id='$(var.PlatformProgramFilesFolder)' Name='PFiles'>
-                <Directory Id='APPLICATIONFOLDER' Name='kestrel'>
+                <Directory Id='APPLICATIONFOLDER' Name='serial-agent'>
                     
                     <!--
                       Enabling the license sidecar file in the installer is a four step process:
@@ -110,7 +110,7 @@
                     -->
 
                     <Directory Id='Bin' Name='bin'>
-                        <Component Id='Path' Guid='DBF0F44A-EAF8-4A21-81E3-32F51BFCA43D' KeyPath='yes'>
+                        <Component Id='Path' Guid='176CCF2C-7F6B-45E7-BAA0-7DC00ED57DD7' KeyPath='yes'>
                             <Environment
                                 Id='PATH'
                                 Name='PATH'
@@ -123,9 +123,9 @@
                         <Component Id='binary0' Guid='*'>
                             <File
                                 Id='exe0'
-                                Name='kestrel.exe'
+                                Name='serial-agent.exe'
                                 DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\kestrel.exe'
+                                Source='$(var.CargoTargetBinDir)\serial-agent.exe'
                                 KeyPath='yes'/>
                         </Component>
                     </Directory>

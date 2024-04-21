@@ -1,11 +1,13 @@
 [package]
-authors     = ["Zachary Kohnen <z.kohnen@aeroteameindhoven.nl>"]
-description = "Telemetry visualization and analysis tool for deeply embedded systems "
-edition     = "2021"
+description = "Telemetry visualization and analysis tool for deeply embedded systems"
 name        = "kestrel"
-publish     = false
-repository  = "https://github.com/aeroteameindhoven/kestrel"
 version     = "0.1.0"
+
+authors.workspace      = true
+edition.workspace      = true
+publish.workspace      = true
+repository.workspace   = true
+rust-version.workspace = true
 
 [package.metadata.wix]
 eula         = false
@@ -41,17 +43,28 @@ string-interner    = "0.15.0"
 tracing            = "0.1.34"
 tracing-subscriber = "0.3.11"
 
+[workspace]
+members = ["crates/serial-agent", "crates/serial-agent-lib"]
+
+[workspace.package]
+authors      = ["Zachary Kohnen <z.kohnen@aeroteameindhoven.nl>"]
+edition      = "2021"
+publish      = false
+repository   = "https://github.com/aeroteameindhoven/kestrel"
+rust-version = "1.78.0"
+
 # Config for 'cargo dist'
 [workspace.metadata.dist]
+# Whether to consider the binaries in a package for distribution (defaults true)
 dist = true
 # The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
 cargo-dist-version = "0.13.2"
 # CI backends to support
 ci = ["github"]
 # The installers to generate for each app
-installers = ["msi", "powershell", "shell"]
+installers = ["shell", "powershell", "msi"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Publish jobs to run in CI
 pr-run-mode = "plan"
 # Whether to install an updater program

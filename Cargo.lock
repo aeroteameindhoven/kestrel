@@ -2642,6 +2642,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "serial-agent"
+version = "0.0.0"
+
+[[package]]
+name = "serial-agent-lib"
+version = "0.0.0"
+
+[[package]]
 name = "serialport"
 version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

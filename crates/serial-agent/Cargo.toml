@@ -1,0 +1,18 @@
+[package]
+description = "Serial agent for kestrel"
+name    = "serial-agent"
+version = "0.0.0" # ensure in sync with serial-agent
+
+authors.workspace      = true
+edition.workspace      = true
+publish.workspace      = true
+repository.workspace   = true
+rust-version.workspace = true
+
+[package.metadata.wix]
+eula         = false
+license      = false
+path-guid    = "176CCF2C-7F6B-45E7-BAA0-7DC00ED57DD7"
+upgrade-guid = "797EBB12-23FB-4326-B189-20C9CE84BD21"
+
+[dependencies]
