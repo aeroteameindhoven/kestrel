@@ -1,6 +1,6 @@
 [package]
-name    = "serial-agent-lib"
-version = "0.0.0" # ensure in sync with serial-agent
+name    = "kestrel-serial-agent-lib"
+version = "0.0.0" # ensure in sync with kestrel-serial-agent
 
 authors.workspace      = true
 edition.workspace      = true
