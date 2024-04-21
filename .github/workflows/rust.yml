@@ -15,11 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: apt update && apt install -y libudev-dev
+      - run: sudo apt update && sudo apt install -y libudev-dev
       - uses: swatinem/rust-cache@v2
       - name: Build
         run: cargo build --verbose --workspace
-      - name: Lint
-        run: cargo clippy --verbose --workspace
       - name: Test
         run: cargo test --verbose --workspace
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swatinem/rust-cache@v2
+      - name: Lint
+        run: cargo clippy --verbose --workspace
