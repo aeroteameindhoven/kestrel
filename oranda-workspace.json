@@ -3,6 +3,19 @@
     "styles": {
         "theme": "axodark"
     },
+    "workspace": {
+        "name": "Kestrel Suite",
+        "members": [
+            {
+                "slug": "kestrel",
+                "path": "./"
+            },
+            {
+                "slug": "kestrel-serial-agent",
+                "path": "./crates/serial-agent"
+            }
+        ]
+    },
     "marketing": {
         "analytics": {
             "umami": {
