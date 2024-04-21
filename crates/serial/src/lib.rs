@@ -18,15 +18,13 @@ mod error;
 
 pub use controller::SerialWorkerController;
 
-use crate::serial::metric::{
+use kestrel_metric::{
     timestamp::Timestamp,
     value::{MetricValue, MetricValueError},
-    Metric,
+    Metric, RobotCommand,
 };
 
 use self::error::{PacketReadError, TransportError};
-
-use super::metric::RobotCommand;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SerialWorkerCommand {

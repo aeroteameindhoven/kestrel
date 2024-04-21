@@ -3,11 +3,7 @@ use eframe::{
     emath::{Align2, Rect, Vec2},
     epaint::{Color32, FontId, Shape, Stroke},
 };
-
-use crate::{
-    metric_name,
-    serial::metric::{name::MetricName, value::MetricValue},
-};
+use kestrel_metric::{metric_name, name::MetricName, value::MetricValue};
 
 pub fn robot<'ui, 'metric>(
     ui: &'ui mut Ui,

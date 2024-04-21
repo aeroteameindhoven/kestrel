@@ -6,7 +6,7 @@ use std::{
     thread::{self},
 };
 
-use crate::serial::metric::{Metric, RobotCommand};
+use kestrel_metric::{Metric, RobotCommand};
 
 use super::{detacher, SerialWorker, SerialWorkerCommand, SerialWorkerState};
 

@@ -6,8 +6,7 @@ use eframe::{
     epaint::Color32,
 };
 use egui_extras::{Column, TableBuilder};
-
-use crate::serial::metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};
+use kestrel_metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};
 
 use super::sizes::{METRIC_NAME_WIDTH, METRIC_TYPE_WIDTH, MONOSPACE_CHAR_WIDTH, TIMESTAMP_WIDTH};
 

@@ -5,8 +5,7 @@ use std::{
 
 use eframe::{egui::Ui, epaint::Color32};
 use egui_plot::{uniform_grid_spacer, Corner, Legend, Line, Plot, PlotPoint, PlotPoints, Points};
-
-use crate::serial::metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};
+use kestrel_metric::{name::MetricName, timestamp::Timestamp, value::MetricValue};
 
 fn label_formatter(name: &str, value: &PlotPoint) -> String {
     format!("{name}\n{}\n@ {}", value.y, x_value_formatter(value.x))

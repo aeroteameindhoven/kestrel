@@ -4,11 +4,6 @@ use std::{
     str::FromStr,
 };
 
-use eframe::{
-    egui::{TextFormat, WidgetText},
-    emath::Align,
-    epaint::{text::LayoutJob, Color32},
-};
 use once_cell::sync::Lazy;
 use parking_lot::{MappedRwLockReadGuard, RwLock, RwLockReadGuard};
 use string_interner::{symbol::DefaultSymbol, DefaultStringInterner};
@@ -127,8 +122,13 @@ impl FromStr for MetricName {
     }
 }
 
-impl From<&MetricName> for WidgetText {
+#[cfg(feature = "egui")]
+impl From<&MetricName> for egui::WidgetText {
     fn from(metric_name: &MetricName) -> Self {
+        use egui::{TextFormat, WidgetText};
+        use emath::Align;
+        use epaint::{text::LayoutJob, Color32};
+
         let mut job = LayoutJob::default();
 
         let mut metric_name = metric_name;
