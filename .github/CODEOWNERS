@@ -1,0 +1,7 @@
+# Ownership of all infrastructure files is given to @DusterTheFirst
+# to ensure that the workflow or deployment is not broken unintentionally
+.github         z.kohnen@aeroteameindhoven.nl
+.vscode         z.kohnen@aeroteameindhoven.nl
+.yarn           z.kohnen@aeroteameindhoven.nl
+LICENSE         z.kohnen@aeroteameindhoven.nl
+oranda.json     z.kohnen@aeroteameindhoven.nl

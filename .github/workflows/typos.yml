@@ -1,0 +1,17 @@
+name: Spell Check
+on:
+  pull_request:
+  merge_group:
+
+jobs:
+  run:
+    name: Spell Check with Typos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Actions Repository
+        uses: actions/checkout@v4
+
+      - name: Check spelling of file.txt
+        uses: crate-ci/typos@v1.20.8
+        with:
+          config: .github/typos.toml
