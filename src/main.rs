@@ -4,14 +4,14 @@ use app::Application;
 use argh::FromArgs;
 use eframe::NativeOptions;
 use ringbuffer::AllocRingBuffer;
-use serial::{metric::timestamp::Timestamp, worker::SerialWorkerController};
+use kestrel_metric::timestamp::Timestamp;
+use kestrel_serial::SerialWorkerController;
 use tracing::info;
 use tracing_subscriber::filter::LevelFilter;
 
 use crate::version::GIT_VERSION;
 
 mod app;
-mod serial;
 mod version;
 mod visualization;
 

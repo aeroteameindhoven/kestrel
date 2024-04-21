@@ -1,5 +1,5 @@
 [package]
-name = "kestrel-serial-agent-lib"
+name = "kestrel-serial"
 
 authors.workspace      = true
 edition.workspace      = true
@@ -9,3 +9,7 @@ rust-version.workspace = true
 version.workspace      = true
 
 [dependencies]
+kestrel-metric = { version = "0.1.0", path = "../metric" }
+postcard-cobs  = "0.2.0"
+serialport     = "4.3.0"
+tracing        = "0.1.40"

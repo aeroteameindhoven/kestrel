@@ -1785,6 +1785,8 @@ dependencies = [
  "egui_extras",
  "egui_plot",
  "git-version",
+ "kestrel-metric",
+ "kestrel-serial",
  "once_cell",
  "parking_lot",
  "postcard-cobs",
@@ -1796,11 +1798,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "kestrel-serial-agent"
+name = "kestrel-metric"
 version = "0.1.0"
+dependencies = [
+ "egui",
+ "emath",
+ "epaint",
+ "once_cell",
+ "parking_lot",
+ "string-interner",
+]
 
 [[package]]
-name = "kestrel-serial-agent-lib"
+name = "kestrel-serial"
+version = "0.1.0"
+dependencies = [
+ "kestrel-metric",
+ "postcard-cobs",
+ "serialport",
+ "tracing",
+]
+
+[[package]]
+name = "kestrel-serial-agent"
 version = "0.1.0"
 
 [[package]]

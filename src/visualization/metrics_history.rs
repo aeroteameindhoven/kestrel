@@ -3,9 +3,8 @@ use eframe::{
     epaint::Color32,
 };
 use egui_extras::{Column, TableBuilder};
+use kestrel_metric::Metric;
 use ringbuffer::{AllocRingBuffer, RingBuffer};
-
-use crate::serial::metric::Metric;
 
 use super::sizes::{METRIC_NAME_WIDTH, METRIC_TYPE_WIDTH, TIMESTAMP_WIDTH};
 

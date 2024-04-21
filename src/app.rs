@@ -5,16 +5,14 @@ use eframe::{
     epaint::Color32,
     App,
 };
+use kestrel_metric::{
+    name::MetricName, timestamp::Timestamp, value::MetricValue, Metric, RobotCommand,
+};
+use kestrel_serial::{SerialWorkerController, SerialWorkerState};
 use ringbuffer::{AllocRingBuffer, RingBuffer};
 
 use crate::{
     new_metric_ring_buffer,
-    serial::{
-        metric::{
-            name::MetricName, timestamp::Timestamp, value::MetricValue, Metric, RobotCommand,
-        },
-        worker::{SerialWorkerController, SerialWorkerState},
-    },
     version::GIT_VERSION,
     visualization::{
         focused_metrics::focused_metrics_plot, latest_metrics::latest_metrics,
