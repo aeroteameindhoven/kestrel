@@ -1,13 +1,13 @@
 [package]
 description = "Serial agent for kestrel"
-name    = "kestrel-serial-agent"
-version = "0.0.0" # ensure in sync with kestrel-serial-agent-lib
+name        = "kestrel-serial-agent"
 
 authors.workspace      = true
 edition.workspace      = true
 publish.workspace      = true
 repository.workspace   = true
 rust-version.workspace = true
+version.workspace      = true
 
 [package.metadata.wix]
 eula         = false

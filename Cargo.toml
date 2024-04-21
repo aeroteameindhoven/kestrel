@@ -1,13 +1,13 @@
 [package]
 description = "Telemetry visualization and analysis tool for deeply embedded systems"
 name        = "kestrel"
-version     = "0.1.0"
 
 authors.workspace      = true
 edition.workspace      = true
 publish.workspace      = true
 repository.workspace   = true
 rust-version.workspace = true
+version.workspace      = true
 
 [package.metadata.wix]
 eula         = false
@@ -52,6 +52,7 @@ edition      = "2021"
 publish      = false
 repository   = "https://github.com/aeroteameindhoven/kestrel"
 rust-version = "1.77.2"
+version      = "0.1.0"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
@@ -62,9 +63,9 @@ cargo-dist-version = "0.13.2"
 # CI backends to support
 ci = ["github"]
 # The installers to generate for each app
-installers = ["shell", "powershell", "msi"]
+installers = ["msi", "powershell", "shell"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-pc-windows-msvc", "x86_64-unknown-linux-gnu"]
 # Publish jobs to run in CI
 pr-run-mode = "plan"
 # Whether to install an updater program
