@@ -200,13 +200,16 @@ impl SerialWorker {
                         expected: None,
                         got: packet.len(),
                     })?;
-            let packet_length = u16::from_le_bytes(packet_length) as usize - size_of::<u16>();
+            let packet_length =
+                (u16::from_le_bytes(packet_length) as usize).saturating_sub(size_of::<u16>());
 
             if packet_length != packet.len() {
-                return Err(PacketReadError::BadPacketLength {
+                dbg!(buffer);
+
+                return dbg!(Err(PacketReadError::BadPacketLength {
                     expected: Some(packet_length),
                     got: packet.len(),
-                });
+                }));
             }
 
             packet

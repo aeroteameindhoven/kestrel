@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, BTreeSet},
-    fmt::Write,
-};
+use std::collections::{BTreeMap, BTreeSet};
 
 use app::Application;
 use argh::FromArgs;

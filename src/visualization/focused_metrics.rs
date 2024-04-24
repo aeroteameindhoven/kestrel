@@ -46,7 +46,7 @@ pub fn focused_metrics_plot<'ui, 'iter>(
         .include_y(0.0)
         .include_y(1.0)
         .x_axis_formatter(|grid_mark, chars, _range| {
-            assert!(chars >= 8, "Need to implement shrinkage");
+            // FIXME: assert!(chars >= 8, "Need to implement shrinkage");
 
             x_value_formatter(grid_mark.value)
         })
