@@ -53,7 +53,7 @@ edition      = "2021"
 publish      = false
 repository   = "https://github.com/aeroteameindhoven/kestrel"
 rust-version = "1.77.2"
-version      = "0.1.0"
+version      = "0.1.1"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]
