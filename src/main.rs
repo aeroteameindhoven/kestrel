@@ -69,56 +69,56 @@ fn main() -> color_eyre::Result<()> {
             .clone()
     };
 
-    let serial_ports = serial_ports()?.collect::<Vec<_>>();
+    // let serial_ports = serial_ports()?.collect::<Vec<_>>();
 
-    let mut fonts = eframe::egui::FontDefinitions::default();
-    egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+    // let mut fonts = eframe::egui::FontDefinitions::default();
+    // egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
-    eframe::run_simple_native(
-        env!("CARGO_PKG_NAME"),
-        Default::default(),
-        move |ctx, frame| {
-            ctx.set_fonts(fonts.clone()); // FIXME: this should be in setup
+    // eframe::run_simple_native(
+    //     env!("CARGO_PKG_NAME"),
+    //     Default::default(),
+    //     move |ctx, frame| {
+    //         ctx.set_fonts(fonts.clone()); // FIXME: this should be in setup
 
-            CentralPanel::default().show(ctx, |ui| {
-                for port in &serial_ports {
-                    ui.horizontal(|ui| {
-                        ui.label(&port.port_name);
+    //         CentralPanel::default().show(ctx, |ui| {
+    //             for port in &serial_ports {
+    //                 ui.horizontal(|ui| {
+    //                     ui.label(&port.port_name);
 
-                        match &port.port_type {
-                            serialport::SerialPortType::UsbPort(info) => {
-                                ui.label(egui_phosphor::regular::USB);
+    //                     match &port.port_type {
+    //                         serialport::SerialPortType::UsbPort(info) => {
+    //                             ui.label(egui_phosphor::regular::USB);
 
-                                if let Some(product) = &info.product {
-                                    ui.label(product);
-                                }
+    //                             if let Some(product) = &info.product {
+    //                                 ui.label(product);
+    //                             }
 
-                                if let Some(manufacture) = &info.manufacturer {
-                                    ui.label(manufacture);
-                                }
+    //                             if let Some(manufacture) = &info.manufacturer {
+    //                                 ui.label(manufacture);
+    //                             }
 
-                                if let Some(serial_number) = &info.serial_number {
-                                    ui.label(format!("({serial_number})"));
-                                }
+    //                             if let Some(serial_number) = &info.serial_number {
+    //                                 ui.label(format!("({serial_number})"));
+    //                             }
 
-                                ui.label(format!("[{}:{}]", info.vid, info.pid));
-                            }
-                            serialport::SerialPortType::PciPort => {
-                                ui.label(egui_phosphor::regular::CPU);
-                            }
-                            serialport::SerialPortType::BluetoothPort => {
-                                ui.label(egui_phosphor::regular::BLUETOOTH);
-                            }
-                            serialport::SerialPortType::Unknown => {
-                                ui.label("?");
-                            }
-                        }
-                    });
-                }
-            });
-        },
-    )
-    .unwrap();
+    //                             ui.label(format!("[{}:{}]", info.vid, info.pid));
+    //                         }
+    //                         serialport::SerialPortType::PciPort => {
+    //                             ui.label(egui_phosphor::regular::CPU);
+    //                         }
+    //                         serialport::SerialPortType::BluetoothPort => {
+    //                             ui.label(egui_phosphor::regular::BLUETOOTH);
+    //                         }
+    //                         serialport::SerialPortType::Unknown => {
+    //                             ui.label("?");
+    //                         }
+    //                     }
+    //                 });
+    //             }
+    //         });
+    //     },
+    // )
+    // .unwrap();
 
     eframe::run_native(
         env!("CARGO_PKG_NAME"),
