@@ -44,6 +44,7 @@ pub enum ManyValues {
     F64(Box<[f64]>),
 }
 
+#[derive(Debug)]
 pub enum MetricValueError {
     BadLength { expected: usize, got: usize },
 }

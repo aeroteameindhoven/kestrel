@@ -24,6 +24,7 @@ impl From<io::Error> for TransportError {
     }
 }
 
+#[derive(Debug)]
 pub enum PacketReadError {
     PoorLayout { section: usize, packet: Box<[u8]> },
     BadPacketLength { expected: Option<usize>, got: usize },

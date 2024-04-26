@@ -2,12 +2,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use app::Application;
 use argh::FromArgs;
-use eframe::NativeOptions;
-use ringbuffer::AllocRingBuffer;
+use eframe::{egui::CentralPanel, NativeOptions};
 use kestrel_metric::timestamp::Timestamp;
 use kestrel_serial::SerialWorkerController;
+use ringbuffer::AllocRingBuffer;
 use tracing::info;
-use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::EnvFilter;
 
 use crate::version::GIT_VERSION;
 
@@ -34,7 +34,7 @@ struct Args {
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     tracing_subscriber::fmt()
-        .with_max_level(LevelFilter::TRACE)
+        .with_env_filter(EnvFilter::from_default_env())
         .compact()
         .with_ansi(cfg!(debug_assertions))
         .init();
@@ -43,9 +43,17 @@ fn main() -> color_eyre::Result<()> {
 
     let args: Args = argh::from_env();
 
+    let serial_ports = || {
+        serialport::available_ports().map(|ports| {
+            ports
+                .into_iter()
+                .filter(|port| port.port_type != serialport::SerialPortType::Unknown)
+        })
+    };
+
     if args.list {
         // TODO:
-        dbg!(serialport::available_ports()?);
+        dbg!(serial_ports()?);
 
         return Ok(());
     }
@@ -54,12 +62,63 @@ fn main() -> color_eyre::Result<()> {
     let port = if let Some(port) = args.port {
         port
     } else {
-        serialport::available_ports()?
-            .first()
+        serial_ports()?
+            .next()
             .expect("no serial port available")
             .port_name
             .clone()
     };
+
+    // let serial_ports = serial_ports()?.collect::<Vec<_>>();
+
+    // let mut fonts = eframe::egui::FontDefinitions::default();
+    // egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+
+    // eframe::run_simple_native(
+    //     env!("CARGO_PKG_NAME"),
+    //     Default::default(),
+    //     move |ctx, frame| {
+    //         ctx.set_fonts(fonts.clone()); // FIXME: this should be in setup
+
+    //         CentralPanel::default().show(ctx, |ui| {
+    //             for port in &serial_ports {
+    //                 ui.horizontal(|ui| {
+    //                     ui.label(&port.port_name);
+
+    //                     match &port.port_type {
+    //                         serialport::SerialPortType::UsbPort(info) => {
+    //                             ui.label(egui_phosphor::regular::USB);
+
+    //                             if let Some(product) = &info.product {
+    //                                 ui.label(product);
+    //                             }
+
+    //                             if let Some(manufacture) = &info.manufacturer {
+    //                                 ui.label(manufacture);
+    //                             }
+
+    //                             if let Some(serial_number) = &info.serial_number {
+    //                                 ui.label(format!("({serial_number})"));
+    //                             }
+
+    //                             ui.label(format!("[{}:{}]", info.vid, info.pid));
+    //                         }
+    //                         serialport::SerialPortType::PciPort => {
+    //                             ui.label(egui_phosphor::regular::CPU);
+    //                         }
+    //                         serialport::SerialPortType::BluetoothPort => {
+    //                             ui.label(egui_phosphor::regular::BLUETOOTH);
+    //                         }
+    //                         serialport::SerialPortType::Unknown => {
+    //                             ui.label("?");
+    //                         }
+    //                     }
+    //                 });
+    //             }
+    //         });
+    //     },
+    // )
+    // .unwrap();
 
     eframe::run_native(
         env!("CARGO_PKG_NAME"),
@@ -92,7 +151,8 @@ fn main() -> color_eyre::Result<()> {
                 ),
             })
         }),
-    ).unwrap(); // FIXME: not Send or Sync :/ color eyre does no like it
+    )
+    .unwrap(); // FIXME: not Send or Sync :/ color eyre does no like it
 
     Ok(())
 }

@@ -16,21 +16,20 @@ path-guid    = "DBF0F44A-EAF8-4A21-81E3-32F51BFCA43D"
 upgrade-guid = "BB0323A3-DA8D-48B8-A258-CEF7E19980CC"
 
 [profile.release]
-codegen-units   = 1
-debug           = 1
-lto             = "fat"
 overflow-checks = true
 
 # The profile that 'cargo dist' will build with
 [profile.dist]
-inherits = "release"
-lto      = "thin"
+codegen-units = 1
+inherits      = "release"
+lto           = "fat"
 
 [dependencies]
 argh               = "0.1.7"
 color-eyre         = "0.6.1"
 colorous           = "1.0.6"
 eframe             = "0.27.2"
+egui-phosphor      = "0.5.0"
 egui_extras        = "0.27.2"
 egui_plot          = "0.27.2"
 git-version        = "0.3.5"
@@ -43,7 +42,7 @@ ringbuffer         = "0.15.0"
 serialport         = "4.1.0"
 string-interner    = "0.15.0"
 tracing            = "0.1.34"
-tracing-subscriber = "0.3.11"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 
 [workspace]
 members = ["crates/metric", "crates/serial", "crates/serial-agent"]
@@ -54,7 +53,7 @@ edition      = "2021"
 publish      = false
 repository   = "https://github.com/aeroteameindhoven/kestrel"
 rust-version = "1.77.2"
-version      = "0.1.0"
+version      = "0.1.1"
 
 # Config for 'cargo dist'
 [workspace.metadata.dist]

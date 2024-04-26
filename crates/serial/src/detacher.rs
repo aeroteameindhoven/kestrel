@@ -4,6 +4,7 @@ use tracing::{error, warn};
 
 use super::SerialWorkerCommand;
 
+// TODO: move this into the app
 pub(super) fn main(command_tx: Sender<SerialWorkerCommand>) {
     let listener = TcpListener::bind("127.0.0.1:6969").expect("failed to bind tcp listener");
 
